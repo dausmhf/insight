@@ -2,11 +2,13 @@ module.exports = {
   apps: [
     {
       name: 'ruank-insight',
-      script: 'npm',
-      args: 'run preview -- --host 127.0.0.1 --port 4177',
+      script: 'server.cjs',
       cwd: '/var/www/ruank-insight-app',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PORT: '4177',
+        PUBLIC_BASE_URL: 'https://insight.dausmhf.com',
+        META_REDIRECT_URI: 'https://insight.dausmhf.com/api/meta/callback'
       }
     }
   ]

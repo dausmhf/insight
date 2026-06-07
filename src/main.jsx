@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
@@ -23,654 +23,76 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
-  UserRound,
   Users,
 } from 'lucide-react';
 import './styles.css';
 
-/* ──────────────────────────
-   MOCK DATA
-   ────────────────────────── */
-const initialClients = [
-  { id: 1, name: 'Belajar Haji', company: 'PT Bimbingan Tamu Allah', status: 'Active', contact: 'Fahri', plan: 'Retainer', color: '#6857f5' },
-  { id: 2, name: 'Ruang Cerita Bunda', company: 'Komunitas Bunda Bertumbuh', status: 'Active', contact: 'Nadia', plan: 'Premium', color: '#1db8a4' },
-  { id: 3, name: 'Quran Talk', company: 'Quran Talk Studio', status: 'Preview', contact: 'Imam', plan: 'Pitching', color: '#f2a93b' },
-];
-
-const initialSocialAccounts = [
-  { id: 101, clientId: 1, username: '@belajarhaji.id', accountName: 'Belajar Haji Official', type: 'Creator', followers: 184200, growth: 4261, growthRate: 7.8, views: 1280000, reach: 499000, reels: 18, status: 'Connected', lastSync: '02:10 WIB', health: 94 },
-  { id: 102, clientId: 1, username: '@hajimuda', accountName: 'Haji Muda', type: 'Business', followers: 64200, growth: 1188, growthRate: 4.2, views: 612000, reach: 221000, reels: 9, status: 'Connected', lastSync: '02:08 WIB', health: 88 },
-  { id: 103, clientId: 1, username: '@umrahclass', accountName: 'Umrah Class', type: 'Creator', followers: 37800, growth: 832, growthRate: 3.6, views: 388000, reach: 146000, reels: 7, status: 'Connected', lastSync: '02:05 WIB', health: 79 },
-  { id: 201, clientId: 2, username: '@ceritabunda', accountName: 'Ruang Cerita Bunda', type: 'Creator', followers: 98200, growth: 2150, growthRate: 6.4, views: 745000, reach: 304000, reels: 14, status: 'Connected', lastSync: '02:04 WIB', health: 91 },
-  { id: 202, clientId: 2, username: '@bundapedia', accountName: 'Bundapedia', type: 'Business', followers: 55200, growth: 902, growthRate: 2.8, views: 200000, reach: 91000, reels: 6, status: 'Connected', lastSync: '01:59 WIB', health: 85 },
-  { id: 301, clientId: 3, username: '@qurantalk.id', accountName: 'Quran Talk', type: 'Creator', followers: 73100, growth: 1602, growthRate: 5.1, views: 688000, reach: 245000, reels: 11, status: 'Preview', lastSync: '01:58 WIB', health: 76 },
-];
-
-const initialAssignments = [
-  { clientId: 1, accountIds: [101, 102, 103], defaultPeriod: '30d', pdf: true, pin: true, token: 'rk_9xK72sLpQmA81vTz' },
-  { clientId: 2, accountIds: [201, 202], defaultPeriod: '30d', pdf: true, pin: false, token: 'rk_7bN40sLpQmC92hTa' },
-  { clientId: 3, accountIds: [301], defaultPeriod: '7d', pdf: false, pin: true, token: 'rk_4pV18zLaRmP62xQe' },
-];
-
-const dailyData = {
-  '7d':  [
-    { day: '1', followers: 310, views: 74000, reach: 42000, engagement: 3200 },
-    { day: '3', followers: 390, views: 91000, reach: 51000, engagement: 3700 },
-    { day: '5', followers: 440, views: 102000, reach: 58000, engagement: 4200 },
-    { day: '7', followers: 520, views: 118000, reach: 66000, engagement: 4900 },
-  ],
-  '30d': [
-    { day: '1',  followers: 300, views: 72000,  reach: 41000,  engagement: 3100 },
-    { day: '5',  followers: 420, views: 96000,  reach: 55000,  engagement: 3900 },
-    { day: '10', followers: 380, views: 88000,  reach: 53000,  engagement: 3600 },
-    { day: '15', followers: 610, views: 148000, reach: 82000,  engagement: 7200 },
-    { day: '20', followers: 540, views: 132000, reach: 76000,  engagement: 6100 },
-    { day: '25', followers: 720, views: 171000, reach: 98000,  engagement: 8500 },
-    { day: '30', followers: 690, views: 160000, reach: 91000,  engagement: 7900 },
-  ],
-  '90d': [
-    { day: 'M1', followers: 1200, views: 320000,  reach: 180000, engagement: 15000 },
-    { day: 'M2', followers: 1800, views: 480000,  reach: 260000, engagement: 22000 },
-    { day: 'M3', followers: 2400, views: 620000,  reach: 340000, engagement: 28000 },
-  ],
-  '180d': [
-    { day: 'Q1', followers: 3200, views: 890000,  reach: 480000, engagement: 42000 },
-    { day: 'Q2', followers: 4100, views: 1120000, reach: 610000, engagement: 55000 },
-  ],
-  '365d': [
-    { day: 'H1', followers: 6200, views: 1800000, reach: 950000,  engagement: 85000 },
-    { day: 'H2', followers: 8400, views: 2400000, reach: 1280000, engagement: 110000 },
-  ],
+const emptyDashboard = {
+  connected: false,
+  updatedAt: null,
+  clients: [],
+  socialAccounts: [],
+  assignments: [],
+  posts: [],
 };
 
-const posts = [
-  // @belajarhaji.id
-  { id: 1, account: '@belajarhaji.id', clientId: 1, title: 'Kesalahan niat yang sering luput', date: '30 Mei 2026', type: 'Reels', views: 382000, viewsRate: 21.4, reach: 214000, likes: 9400, saves: 4100, shares: 2700, er: 6.1, pillar: 'Edukasi', status: 'repeat', color: '#6857f5' },
-  { id: 2, account: '@belajarhaji.id', clientId: 1, title: 'Checklist barang sebelum berangkat', date: '27 Mei 2026', type: 'Carousel', views: 248000, viewsRate: 13.9, reach: 132000, likes: 6100, saves: 6900, shares: 1700, er: 7.4, pillar: 'Praktikal', status: 'repeat', color: '#1db8a4' },
-  { id: 8, account: '@belajarhaji.id', clientId: 1, title: 'Tips menjaga kesehatan saat thawaf', date: '25 Mei 2026', type: 'Single Post', views: 189000, viewsRate: 10.2, reach: 98000, likes: 4500, saves: 3200, shares: 890, er: 4.8, pillar: 'Praktikal', status: 'repeat', color: '#6857f5' },
-  { id: 9, account: '@belajarhaji.id', clientId: 1, title: 'Amalan terbaik hari Arafah', date: '22 Mei 2026', type: 'Reels', views: 460000, viewsRate: 25.8, reach: 280000, likes: 18200, saves: 11000, shares: 9200, er: 9.2, pillar: 'Spiritual', status: 'repeat', color: '#ef6b57' },
+const format = (value) => new Intl.NumberFormat('id-ID').format(Number(value || 0));
 
-  // @hajimuda
-  { id: 3, account: '@hajimuda', clientId: 1, title: 'Cerita jamaah pertama kali thawaf', date: '24 Mei 2026', type: 'Reels', views: 196000, viewsRate: 10.9, reach: 104000, likes: 5300, saves: 1800, shares: 1500, er: 5.9, pillar: 'Story', status: 'improve', color: '#ef6b57' },
-  { id: 10, account: '@hajimuda', clientId: 1, title: 'Haji di usia muda: Kenapa tidak?', date: '18 Mei 2026', type: 'Carousel', views: 142000, viewsRate: 8.2, reach: 81000, likes: 3800, saves: 4200, shares: 1200, er: 6.4, pillar: 'Spiritual', status: 'repeat', color: '#1db8a4' },
-  { id: 11, account: '@hajimuda', clientId: 1, title: 'Vlog persiapan paspor & visa haji', date: '15 Mei 2026', type: 'Reels', views: 274000, viewsRate: 15.6, reach: 155000, likes: 9800, saves: 2100, shares: 3100, er: 7.2, pillar: 'Praktikal', status: 'repeat', color: '#6857f5' },
-
-  // @umrahclass
-  { id: 4, account: '@umrahclass', clientId: 1, title: 'Doa singkat sebelum perjalanan', date: '20 Mei 2026', type: 'Single Post', views: 74000, viewsRate: 4.1, reach: 49000, likes: 2100, saves: 1300, shares: 420, er: 4.2, pillar: 'Spiritual', status: 'improve', color: '#f2a93b' },
-  { id: 12, account: '@umrahclass', clientId: 1, title: 'Checklist Umrah Mandiri 2026', date: '16 Mei 2026', type: 'Carousel', views: 98000, viewsRate: 5.4, reach: 62000, likes: 3100, saves: 5100, shares: 780, er: 5.1, pillar: 'Praktikal', status: 'repeat', color: '#1db8a4' },
-  { id: 13, account: '@umrahclass', clientId: 1, title: 'Perbedaan Rukun & Wajib Umrah', date: '12 Mei 2026', type: 'Single Post', views: 112000, viewsRate: 6.2, reach: 71000, likes: 4500, saves: 2800, shares: 920, er: 5.8, pillar: 'Edukasi', status: 'repeat', color: '#6857f5' },
-
-  // @ceritabunda
-  { id: 5, account: '@ceritabunda', clientId: 2, title: 'Tips parenting anak usia 3 tahun', date: '29 Mei 2026', type: 'Reels', views: 312000, viewsRate: 18.2, reach: 176000, likes: 7800, saves: 5200, shares: 2100, er: 6.8, pillar: 'Edukasi', status: 'repeat', color: '#1db8a4' },
-  { id: 14, account: '@ceritabunda', clientId: 2, title: 'Menghadapi anak tantrum di mal', date: '25 Mei 2026', type: 'Carousel', views: 215000, viewsRate: 12.4, reach: 121000, likes: 6200, saves: 8900, shares: 1900, er: 8.1, pillar: 'Edukasi', status: 'repeat', color: '#ef6b57' },
-  { id: 15, account: '@ceritabunda', clientId: 2, title: 'Pentingnya sleep training untuk bayi', date: '20 Mei 2026', type: 'Reels', views: 182000, viewsRate: 10.6, reach: 98000, likes: 4900, saves: 3400, shares: 1100, er: 5.2, pillar: 'Praktikal', status: 'improve', color: '#f2a93b' },
-
-  // @bundapedia
-  { id: 6, account: '@bundapedia', clientId: 2, title: 'Menu MPASI sehat tanpa ribet', date: '22 Mei 2026', type: 'Carousel', views: 118000, viewsRate: 6.8, reach: 64000, likes: 3200, saves: 4800, shares: 890, er: 7.1, pillar: 'Praktikal', status: 'repeat', color: '#6857f5' },
-  { id: 16, account: '@bundapedia', clientId: 2, title: 'Resep puree alpukat pisang praktis', date: '17 Mei 2026', type: 'Single Post', views: 92000, viewsRate: 5.2, reach: 51000, likes: 2400, saves: 3100, shares: 410, er: 4.8, pillar: 'Praktikal', status: 'repeat', color: '#1db8a4' },
-  { id: 17, account: '@bundapedia', clientId: 2, title: 'Jadwal makan bayi 6-12 bulan', date: '11 Mei 2026', type: 'Carousel', views: 145000, viewsRate: 8.4, reach: 82000, likes: 5100, saves: 7600, shares: 1300, er: 7.8, pillar: 'Edukasi', status: 'repeat', color: '#ef6b57' },
-
-  // @qurantalk.id
-  { id: 7, account: '@qurantalk.id', clientId: 3, title: 'Tadabbur surat Al-Mulk ayat 1-5', date: '28 Mei 2026', type: 'Reels', views: 265000, viewsRate: 14.6, reach: 148000, likes: 6500, saves: 3800, shares: 1900, er: 5.5, pillar: 'Edukasi', status: 'repeat', color: '#f2a93b' },
-  { id: 18, account: '@qurantalk.id', clientId: 3, title: 'Kunci istiqomah belajar Quran', date: '22 Mei 2026', type: 'Carousel', views: 198000, viewsRate: 10.9, reach: 112000, likes: 4900, saves: 6100, shares: 2200, er: 6.2, pillar: 'Spiritual', status: 'repeat', color: '#1db8a4' },
-  { id: 19, account: '@qurantalk.id', clientId: 3, title: 'Cara cepat menghafal surat pendek', date: '15 Mei 2026', type: 'Reels', views: 320000, viewsRate: 17.6, reach: 185000, likes: 11200, saves: 8400, shares: 4300, er: 7.8, pillar: 'Edukasi', status: 'repeat', color: '#6857f5' },
-];
-
-const getAccountDailyData = (accountId, period, socialAccountsList) => {
-  const account = (socialAccountsList || initialSocialAccounts).find((a) => a.id === accountId);
-  if (!account) return dailyData[period] ?? [];
-
-  const seed = account.id;
-  const baseData = dailyData[period] ?? dailyData['30d'];
-
-  const totalBaseViews = baseData.reduce((sum, d) => sum + d.views, 0) || 1;
-  const totalBaseFollowers = baseData.reduce((sum, d) => sum + d.followers, 0) || 1;
-
-  const viewsScale = account.views / totalBaseViews;
-  const followersScale = account.growth / totalBaseFollowers;
-
-  return baseData.map((d, index) => {
-    const varFactor1 = 0.85 + (Math.sin(seed + index) * 0.15);
-    const varFactor2 = 0.85 + (Math.cos(seed + index) * 0.15);
-    return {
-      day: d.day,
-      followers: Math.max(1, Math.round(d.followers * followersScale * varFactor1)),
-      views: Math.max(10, Math.round(d.views * viewsScale * varFactor2)),
-    };
-  });
-};
-
-const format = (value) => new Intl.NumberFormat('id-ID').format(value);
-
-
-
-
-
-/* ──────────────────────────
-   APP
-   ────────────────────────── */
 function App() {
   const [view, setView] = useState('dashboard');
   const [period, setPeriod] = useState('30d');
-  const [selectedClientId, setSelectedClientId] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [assignments, setAssignments] = useState(initialAssignments);
-  const [toast, setToast] = useState(null);
-  const [adminActiveAccountId, setAdminActiveAccountId] = useState(101);
+  const [data, setData] = useState(emptyDashboard);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Dynamic state for clients and social accounts
-  const [clients, setClients] = useState(initialClients);
-  const [socialAccounts, setSocialAccounts] = useState(initialSocialAccounts);
-
-  // Modals state
-  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
-  const [isMetaConnectOpen, setIsMetaConnectOpen] = useState(false);
-
-  // Tambah Client Form States
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientCompany, setNewClientCompany] = useState('');
-  const [newClientContact, setNewClientContact] = useState('');
-  const [newClientPlan, setNewClientPlan] = useState('Retainer');
-  const [newClientColor, setNewClientColor] = useState('#6857f5');
-
-  // Meta App Config Form States
-  const [metaActiveTab, setMetaActiveTab] = useState('diagnostic'); // 'diagnostic' | 'credentials'
-  const [metaAppId, setMetaAppId] = useState('');
-  const [metaAppSecret, setMetaAppSecret] = useState('');
-  const [metaUserToken, setMetaUserToken] = useState('');
-  const [connectionStatus, setConnectionStatus] = useState('idle'); // 'idle' | 'checking' | 'connected'
-  const [metaAccounts, setMetaAccounts] = useState([
-    { id: 401, username: '@travelumroh.official', accountName: 'Travel Umroh Official', followers: 15200, growth: 420, growthRate: 2.8, views: 92000, reach: 41000, reels: 3, health: 92, targetClientId: 1, checked: true },
-    { id: 402, username: '@kuliner.jakarta', accountName: 'Info Kuliner Jakarta', followers: 32400, growth: 1250, growthRate: 3.9, views: 245000, reach: 98000, reels: 8, health: 86, targetClientId: 2, checked: false }
-  ]);
-
-  const showToast = useCallback((message) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
+  useEffect(() => {
+    fetch('/api/dashboard')
+      .then((response) => {
+        if (!response.ok) throw new Error('Dashboard API gagal dimuat');
+        return response.json();
+      })
+      .then((payload) => setData({ ...emptyDashboard, ...payload }))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId) ?? clients[0];
-  const selectedAssignment = assignments.find((a) => a.clientId === selectedClient.id) ?? assignments[0];
-  const allowedAccounts = socialAccounts.filter((a) => selectedAssignment?.accountIds?.includes(a.id) || false);
+  const selectedClient = data.clients[0] || null;
+  const assignment = data.assignments[0] || null;
+  const allowedAccounts = assignment
+    ? data.socialAccounts.filter((account) => assignment.accountIds.includes(account.id))
+    : data.socialAccounts;
 
-  const toggleAccountAssignment = useCallback((clientId, accountId) => {
-    setAssignments((prev) =>
-      prev.map((a) => {
-        if (a.clientId !== clientId) return a;
-        const ids = a.accountIds.includes(accountId)
-          ? a.accountIds.filter((id) => id !== accountId)
-          : [...a.accountIds, accountId];
-        return { ...a, accountIds: ids };
-      })
-    );
-  }, []);
-
-  // Tambah Client Submit
-  const handleAddClientSubmit = (e) => {
-    e.preventDefault();
-    if (!newClientName.trim() || !newClientCompany.trim()) {
-      showToast('Mohon lengkapi nama client dan perusahaan.');
-      return;
-    }
-
-    const newId = clients.length > 0 ? Math.max(...clients.map((c) => c.id)) + 1 : 1;
-    const newClient = {
-      id: newId,
-      name: newClientName,
-      company: newClientCompany,
-      status: 'Active',
-      contact: newClientContact || 'PIC',
-      plan: newClientPlan,
-      color: newClientColor,
-    };
-
-    setClients((prev) => [...prev, newClient]);
-    setAssignments((prev) => [
-      ...prev,
-      {
-        clientId: newId,
-        accountIds: [],
-        defaultPeriod: '30d',
-        pdf: true,
-        pin: false,
-        token: `rk_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`,
-      },
-    ]);
-
-    setIsAddClientOpen(false);
-    showToast(`Client ${newClientName} berhasil ditambahkan!`);
-    
-    // Reset form
-    setNewClientName('');
-    setNewClientCompany('');
-    setNewClientContact('');
-    setNewClientPlan('Retainer');
-    setNewClientColor('#6857f5');
-  };
-
-  // Meta connection check
-  const handleMetaCheckConnection = () => {
-    setConnectionStatus('checking');
-    setTimeout(() => {
-      setConnectionStatus('connected');
-      showToast('Koneksi Meta Graph API Berhasil!');
-    }, 1500);
-  };
-
-  // Import Meta IG Accounts
-  const handleImportAccounts = () => {
-    const accountsToImport = metaAccounts.filter((a) => a.checked);
-    if (accountsToImport.length === 0) {
-      showToast('Pilih setidaknya satu akun untuk di-import.');
-      return;
-    }
-
-    // Append to social accounts list
-    setSocialAccounts((prev) => {
-      const existingIds = prev.map((pa) => pa.id);
-      const newAccounts = accountsToImport
-        .filter((a) => !existingIds.includes(a.id))
-        .map((a) => ({
-          id: a.id,
-          clientId: Number(a.targetClientId),
-          username: a.username,
-          accountName: a.accountName,
-          type: 'Creator',
-          followers: a.followers,
-          growth: a.growth,
-          growthRate: a.growthRate,
-          views: a.views,
-          reach: a.reach,
-          reels: a.reels,
-          status: 'Connected',
-          lastSync: 'Baru saja',
-          health: a.health,
-        }));
-      return [...prev, ...newAccounts];
-    });
-
-    // Update assignment to link new accounts to target clients
-    setAssignments((prev) =>
-      prev.map((assign) => {
-        const matchingImports = accountsToImport.filter((a) => Number(a.targetClientId) === assign.clientId);
-        if (matchingImports.length === 0) return assign;
-        
-        const newIds = [...new Set([...assign.accountIds, ...matchingImports.map((m) => m.id)])];
-        return { ...assign, accountIds: newIds };
-      })
-    );
-
-    setIsMetaConnectOpen(false);
-    showToast(`${accountsToImport.length} akun Instagram berhasil di-import!`);
-    setConnectionStatus('idle');
-  };
-
-  const toggleImportCheck = (id) => {
-    setMetaAccounts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, checked: !a.checked } : a))
-    );
-  };
-
-  const handleImportClientChange = (id, clientId) => {
-    setMetaAccounts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, targetClientId: Number(clientId) } : a))
-    );
-  };
+  const totals = useMemo(() => {
+    const followers = data.socialAccounts.reduce((sum, item) => sum + Number(item.followers || 0), 0);
+    const growth = data.socialAccounts.reduce((sum, item) => sum + Number(item.growth || 0), 0);
+    const views = data.socialAccounts.reduce((sum, item) => sum + Number(item.views || 0), 0);
+    const reach = data.socialAccounts.reduce((sum, item) => sum + Number(item.reach || 0), 0);
+    return { followers, growth, views, reach };
+  }, [data.socialAccounts]);
 
   return (
     <main className="app-shell">
       <Sidebar view={view} setView={setView} />
       <section className="workspace">
-        <Topbar view={view} period={period} setPeriod={setPeriod} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        {view === 'dashboard' && (
-          <DashboardHome
-            activeAccountId={adminActiveAccountId}
-            setActiveAccountId={setAdminActiveAccountId}
-            period={period}
-            searchQuery={searchQuery}
-            showToast={showToast}
-            clients={clients}
-            socialAccounts={socialAccounts}
-            onConnectIG={() => setIsMetaConnectOpen(true)}
-          />
-        )}
-        {view === 'clients' && (
-          <ClientsView
-            selectedClientId={selectedClientId}
-            setSelectedClientId={setSelectedClientId}
-            searchQuery={searchQuery}
-            showToast={showToast}
-            clients={clients}
-            socialAccounts={socialAccounts}
-            onAddClient={() => setIsAddClientOpen(true)}
-          />
-        )}
-        {view === 'social' && (
-          <SocialMediaView
-            searchQuery={searchQuery}
-            showToast={showToast}
-            clients={clients}
-            socialAccounts={socialAccounts}
-            onConnectIG={() => setIsMetaConnectOpen(true)}
-          />
-        )}
-        {view === 'settings' && (
-          <SettingsView
-            selectedClient={selectedClient}
-            setSelectedClientId={setSelectedClientId}
-            assignment={selectedAssignment}
-            accounts={allowedAccounts}
-            onToggleAccount={toggleAccountAssignment}
-            showToast={showToast}
-            clients={clients}
-            socialAccounts={socialAccounts}
-          />
-        )}
-        {view === 'client' && <ClientView client={selectedClient} accounts={allowedAccounts} period={period} />}
+        <Topbar view={view} period={period} setPeriod={setPeriod} updatedAt={data.updatedAt} />
+        {error ? <Notice type="error" title="API error" body={error} /> : null}
+        {loading ? <Notice title="Memuat dashboard" body="Mengambil data live dari backend Ruank Insight." /> : null}
+        {view === 'dashboard' && <DashboardHome data={data} totals={totals} />}
+        {view === 'clients' && <ClientsView clients={data.clients} accounts={data.socialAccounts} />}
+        {view === 'social' && <SocialMediaView accounts={data.socialAccounts} />}
+        {view === 'settings' && <SettingsView client={selectedClient} assignment={assignment} accounts={data.socialAccounts} />}
+        {view === 'client' && <ClientView client={selectedClient} accounts={allowedAccounts} posts={data.posts} period={period} />}
       </section>
-
-      {/* Tambah Client Modal */}
-      {isAddClientOpen && (
-        <div className="modal-overlay" onClick={() => setIsAddClientOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Tambah Client Baru</h3>
-              <button className="modal-close-btn" onClick={() => setIsAddClientOpen(false)}>×</button>
-            </div>
-            <form onSubmit={handleAddClientSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label htmlFor="client-name">Nama Client / Brand</label>
-                  <input
-                    id="client-name"
-                    className="form-input"
-                    placeholder="Contoh: Belajar Haji"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="client-company">Perusahaan</label>
-                  <input
-                    id="client-company"
-                    className="form-input"
-                    placeholder="Contoh: PT Bimbingan Tamu Allah"
-                    value={newClientCompany}
-                    onChange={(e) => setNewClientCompany(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="client-contact">Kontak PIC (Nama)</label>
-                  <input
-                    id="client-contact"
-                    className="form-input"
-                    placeholder="Contoh: Fahri"
-                    value={newClientContact}
-                    onChange={(e) => setNewClientContact(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="client-plan">Paket Layanan</label>
-                  <select
-                    id="client-plan"
-                    className="form-select"
-                    value={newClientPlan}
-                    onChange={(e) => setNewClientPlan(e.target.value)}
-                  >
-                    <option value="Retainer">Retainer</option>
-                    <option value="Premium">Premium</option>
-                    <option value="Pitching">Pitching</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Warna Aksen Brand</label>
-                  <div className="color-presets">
-                    {['#6857f5', '#1db8a4', '#f2a93b', '#ef6b57', '#22c55e'].map((c) => (
-                      <span
-                        key={c}
-                        className={`color-dot ${newClientColor === c ? 'active' : ''}`}
-                        style={{ backgroundColor: c }}
-                        onClick={() => setNewClientColor(c)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="hero-actions ghost" style={{ height: '36px' }} onClick={() => setIsAddClientOpen(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="hero-actions" style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}>
-                  Simpan Client
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Meta API Diagnostic Modal */}
-      {isMetaConnectOpen && (
-        <div className="modal-overlay" onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Meta Graph API Connector</h3>
-              <button className="modal-close-btn" onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}>×</button>
-            </div>
-            
-            <div className="modal-tabs">
-              <button
-                className={`modal-tab-btn ${metaActiveTab === 'diagnostic' ? 'active' : ''}`}
-                onClick={() => setMetaActiveTab('diagnostic')}
-              >
-                Diagnostic Status
-              </button>
-              <button
-                className={`modal-tab-btn ${metaActiveTab === 'credentials' ? 'active' : ''}`}
-                onClick={() => setMetaActiveTab('credentials')}
-              >
-                API Credentials
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {metaActiveTab === 'diagnostic' && (
-                <>
-                  <div className="diagnostic-panel">
-                    <div className="diagnostic-item">
-                      <div className="diagnostic-label">
-                        <strong>Meta Server Status</strong>
-                        <span>Graph API Endpoint Reachability</span>
-                      </div>
-                      <span className="status-badge ok">Connected (Ping 45ms)</span>
-                    </div>
-                    <div className="diagnostic-item">
-                      <div className="diagnostic-label">
-                        <strong>Meta Developer App ID</strong>
-                        <span>Application identity settings</span>
-                      </div>
-                      <span className={`status-badge ${metaAppId ? 'ok' : 'warning'}`}>
-                        {metaAppId ? 'Configured' : 'Unconfigured'}
-                      </span>
-                    </div>
-                    <div className="diagnostic-item">
-                      <div className="diagnostic-label">
-                        <strong>User Access Token</strong>
-                        <span>Meta Graph Access Authentication Token</span>
-                      </div>
-                      <span className={`status-badge ${metaUserToken ? 'ok' : 'error'}`}>
-                        {metaUserToken ? 'Valid (Expires in 59d)' : 'Empty / Expired'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {connectionStatus === 'idle' && (
-                    <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                      <button
-                        className="hero-actions"
-                        style={{ height: '38px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
-                        onClick={handleMetaCheckConnection}
-                      >
-                        Cek Koneksi & Sync Akun
-                      </button>
-                    </div>
-                  )}
-
-                  {connectionStatus === 'checking' && (
-                    <div className="diagnostic-loader">
-                      <div className="spinner" />
-                      <span>Menghubungkan ke Meta Graph API Server...</span>
-                    </div>
-                  )}
-
-                  {connectionStatus === 'connected' && (
-                    <div>
-                      <div className="info-box" style={{ marginBottom: '16px' }}>
-                        <strong>Koneksi Sukses!</strong> Menemukan 2 akun Instagram Profesional yang ditautkan pada Facebook Page Anda.
-                      </div>
-                      <strong style={{ fontSize: '13px', display: 'block', marginBottom: '8px' }}>Pilih Akun yang akan Di-import:</strong>
-                      <div className="import-checklist">
-                        {metaAccounts.map((acc) => (
-                          <div
-                            key={acc.id}
-                            className={`import-row ${acc.checked ? 'checked' : ''}`}
-                            onClick={() => toggleImportCheck(acc.id)}
-                          >
-                            <div className="import-row-info">
-                              <input
-                                type="checkbox"
-                                className="import-checkbox"
-                                checked={acc.checked}
-                                readOnly
-                              />
-                              <Instagram size={18} style={{ color: 'var(--purple)' }} />
-                              <span>
-                                <strong>{acc.username}</strong>
-                                <small>{acc.accountName} · {format(acc.followers)} followers</small>
-                              </span>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <select
-                                className="form-select"
-                                style={{ height: '32px', fontSize: '12px', padding: '0 8px' }}
-                                value={acc.targetClientId}
-                                onChange={(e) => handleImportClientChange(acc.id, e.target.value)}
-                              >
-                                {clients.map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    Assign ke: {c.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {metaActiveTab === 'credentials' && (
-                <>
-                  <div className="info-box">
-                    Gunakan tab ini untuk melakukan kustomisasi credential developer Meta App ID dan Access Token jika ingin menghubungkan dengan App real.
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="meta-app-id">Meta App ID</label>
-                    <input
-                      id="meta-app-id"
-                      className="form-input"
-                      placeholder="Masukkan 15-digit App ID (misal: 104256729012356)"
-                      value={metaAppId}
-                      onChange={(e) => setMetaAppId(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="meta-app-secret">Meta App Secret</label>
-                    <input
-                      id="meta-app-secret"
-                      type="password"
-                      className="form-input"
-                      placeholder="Masukkan App Secret Key"
-                      value={metaAppSecret}
-                      onChange={(e) => setMetaAppSecret(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="meta-user-token">Meta User Access Token</label>
-                    <textarea
-                      id="meta-user-token"
-                      className="form-input"
-                      style={{ height: '80px', padding: '10px 14px', resize: 'none', fontFamily: 'monospace' }}
-                      placeholder="EAAGb3ZCsZC16... (Dapatkan dari Meta Graph Explorer)"
-                      value={metaUserToken}
-                      onChange={(e) => setMetaUserToken(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="hero-actions ghost"
-                style={{ height: '36px' }}
-                onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}
-              >
-                Batal
-              </button>
-              {connectionStatus === 'connected' && metaActiveTab === 'diagnostic' && (
-                <button
-                  type="button"
-                  className="hero-actions"
-                  style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
-                  onClick={handleImportAccounts}
-                >
-                  Import Akun Terpilih
-                </button>
-              )}
-              {metaActiveTab === 'credentials' && (
-                <button
-                  type="button"
-                  className="hero-actions"
-                  style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
-                  onClick={() => {
-                    setMetaActiveTab('diagnostic');
-                    showToast('Kredensial disimpan! Silakan cek koneksi.');
-                  }}
-                >
-                  Simpan Credential
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="toast">
-          <CheckCircle2 size={18} />
-          {toast}
-        </div>
-      )}
     </main>
   );
 }
 
-/* ──────────────────────────
-   SIDEBAR
-   ────────────────────────── */
 function Sidebar({ view, setView }) {
   const nav = [
     ['dashboard', LayoutDashboard, 'Dashboard'],
     ['clients', Users, 'Client List'],
-    ['social', Instagram, 'Social Media'],
+    ['social', Instagram, 'Social Media List'],
     ['settings', Settings, 'Settings Access'],
     ['client', Link2, 'Client Share View'],
   ];
@@ -681,330 +103,233 @@ function Sidebar({ view, setView }) {
         <div className="brand-mark">RI</div>
         <div>
           <strong>Ruank Insight</strong>
-          <span>Operating dashboard</span>
+          <span>Live Meta dashboard</span>
         </div>
       </div>
       <nav className="nav-list" aria-label="Admin navigation">
         {nav.map(([key, Icon, label]) => (
           <button key={key} className={view === key ? 'active' : ''} onClick={() => setView(key)}>
-            <Icon size={17} /> {label}
+            <Icon size={18} /> {label}
           </button>
         ))}
       </nav>
       <div className="security-panel">
-        <Lock size={17} />
-        <strong>Share link aman</strong>
-        <span>Client hanya melihat akun IG yang di-set di Settings Access.</span>
+        <Lock size={18} />
+        <strong>Meta OAuth aktif</strong>
+        <span>Token disimpan terenkripsi di backend dan tidak pernah tampil di frontend.</span>
       </div>
     </aside>
   );
 }
 
-/* ──────────────────────────
-   TOPBAR
-   ────────────────────────── */
-function Topbar({ view, period, setPeriod, searchQuery, setSearchQuery }) {
+function Topbar({ view, period, setPeriod, updatedAt }) {
   const titles = {
-    dashboard: ['Operating Dashboard', 'Overview semua client dan akun IG'],
-    clients: ['Client List', 'Kelola data client dan akun sosial'],
-    social: ['Social Media List', 'Listing akun IG, sync status, dan performa'],
-    settings: ['Settings Access', 'Set client ke akun IG yang boleh dilihat'],
-    client: ['Client Share View', 'Preview dashboard yang akan dilihat client'],
+    dashboard: ['Operating Dashboard', 'Overview akun IG live dari Meta API'],
+    clients: ['Client List', 'Client yang punya akses ke akun IG'],
+    social: ['Social Media List', 'Akun Instagram yang sudah terhubung'],
+    settings: ['Settings Access', 'Mapping client ke akun IG'],
+    client: ['Client Share View', 'Preview dashboard yang dilihat client'],
   };
 
   return (
     <header className="topbar">
       <label className="searchbox">
-        <Search size={16} />
-        <input
-          placeholder="Cari client, akun IG, konten..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <Search size={18} />
+        <input placeholder="Cari akun IG, konten, metric..." />
       </label>
       <div className="top-title">
-        <p className="eyebrow">{titles[view]?.[0]}</p>
-        <h1>{titles[view]?.[1]}</h1>
+        <p className="eyebrow">{titles[view][0]}</p>
+        <h1>{titles[view][1]}</h1>
+        {updatedAt ? <small className="sync-label">Last sync: {new Date(updatedAt).toLocaleString('id-ID')}</small> : null}
       </div>
       <div className="top-actions">
-        <button className="icon-btn" title="Notifications">
-          <Bell size={18} />
-          <span className="badge" />
-        </button>
-        <button className="icon-btn" title="Refresh sync">
-          <RefreshCw size={18} />
-        </button>
+        <a className="primary-link" href="/api/meta/connect"><Plus size={18} /> Connect IG</a>
+        <button className="icon-btn" title="Notification"><Bell size={18} /></button>
+        <button className="icon-btn" title="Refresh" onClick={() => window.location.reload()}><RefreshCw size={18} /></button>
         <div className="select-wrap">
-          <CalendarDays size={16} />
-          <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+          <CalendarDays size={17} />
+          <select value={period} onChange={(event) => setPeriod(event.target.value)}>
             <option value="7d">7 hari</option>
             <option value="30d">30 hari</option>
             <option value="90d">90 hari</option>
             <option value="180d">180 hari</option>
             <option value="365d">1 tahun</option>
           </select>
-          <ChevronDown size={14} />
-        </div>
-        <div className="profile-chip">
-          <span>RA</span>
-          <strong>Admin Ruank</strong>
+          <ChevronDown size={16} />
         </div>
       </div>
     </header>
   );
 }
 
-/* ──────────────────────────
-   DASHBOARD HOME
-   ────────────────────────── */
-function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuery, showToast, clients = [], socialAccounts = [], onConnectIG }) {
-  const activeAccount = socialAccounts.find((a) => a.id === activeAccountId) ?? socialAccounts[0];
-  
-  if (!activeAccount) {
-    return (
-      <div className="dashboard-page">
-        <section className="hero-panel" style={{ minHeight: 'auto', padding: '32px' }}>
-          <div>
-            <p className="eyebrow">Ruank Insight Dashboard</p>
-            <h2>Belum ada akun Instagram terhubung.</h2>
-            <span>Hubungkan akun Instagram profesional pertama Anda lewat developer portal Meta API.</span>
-          </div>
-          <div className="hero-actions">
-            <button onClick={onConnectIG}>
-              <Plus size={17} /> Connect IG
-            </button>
-          </div>
-        </section>
-      </div>
-    );
-  }
+function Notice({ title, body, type = 'info' }) {
+  return (
+    <section className={`notice ${type}`}>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </section>
+  );
+}
 
-  const daily = getAccountDailyData(activeAccount.id, period, socialAccounts);
-  const accountPosts = posts.filter((p) => p.account === activeAccount.username);
-  
-  const avgER = accountPosts.length > 0 
-    ? (accountPosts.reduce((sum, p) => sum + p.er, 0) / accountPosts.length).toFixed(1) 
-    : '0.0';
-
+function DashboardHome({ data, totals }) {
   return (
     <div className="dashboard-page">
+      {!data.connected ? <ConnectEmptyState /> : null}
       <section className="hero-panel">
         <div>
           <p className="eyebrow">Ruank Insight Dashboard</p>
-          <h2>Dashboard social media untuk operator dan strategist.</h2>
-          <span>Semua angka dibaca dari database snapshot untuk akun yang sedang aktif.</span>
+          <h2>Dashboard Instagram live untuk operator dan strategist.</h2>
+          <span>Data diambil lewat Meta OAuth, lalu dashboard membaca snapshot yang tersimpan di backend.</span>
         </div>
         <div className="hero-actions">
-          <button onClick={onConnectIG}>
-            <Plus size={17} /> Connect IG
-          </button>
-          <button className="ghost" onClick={() => showToast('Export report akan tersedia dalam versi production.')}>
-            <Download size={17} /> Export Report
-          </button>
-        </div>
-      </section>
-
-      <section className="account-selector-wrapper">
-        <strong>Pilih Akun Instagram Aktif</strong>
-        <div className="account-selector-tabs">
-          {socialAccounts.map((account) => {
-            const client = clients.find((c) => c.id === account.clientId);
-            const isActive = account.id === activeAccount.id;
-            return (
-              <button
-                key={account.id}
-                className={`account-tab-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveAccountId(account.id)}
-                style={{ '--avatar': client?.color || 'var(--purple)' }}
-              >
-                <span className="avatar-mini">
-                  {client?.name.slice(0, 2) || 'IG'}
-                </span>
-                <strong>{account.username}</strong>
-                <span style={{ fontSize: '11px', opacity: isActive ? 0.9 : 0.6 }}>
-                  ({client?.name})
-                </span>
-              </button>
-            );
-          })}
+          <a className="hero-button" href="/api/meta/connect"><Plus size={18} /> Connect IG</a>
+          <button className="ghost"><Download size={18} /> Export Report</button>
         </div>
       </section>
 
       <div className="metric-grid">
-        <Metric title="Followers" value={format(activeAccount.followers)} detail={`+${format(activeAccount.growth)} follower`} rate={`+${activeAccount.growthRate}%`} icon={<TrendingUp />} featured />
-        <Metric title="Views Periode Ini" value={format(activeAccount.views)} detail="Views akun terpilih" rate="+18.2%" icon={<Activity />} />
-        <Metric title="Reach Periode Ini" value={format(activeAccount.reach)} detail="Audience unik" rate="+11.5%" icon={<Eye />} />
-        <Metric title="Avg ER" value={`${avgER}%`} detail="Engagement rate" rate="+0.8%" icon={<MessageCircle />} />
+        <Metric title="Total Followers" value={format(totals.followers)} detail={`+${format(totals.growth)} follower`} rate="live" icon={<TrendingUp />} featured />
+        <Metric title="Views" value={format(totals.views)} detail="Dari media insights" rate="live" icon={<Activity />} />
+        <Metric title="Reach" value={format(totals.reach)} detail="Audience unik" rate="live" icon={<Eye />} />
+        <Metric title="Connected IG" value={format(data.socialAccounts.length)} detail="Akun profesional" rate="OAuth" icon={<Instagram />} />
       </div>
 
       <section className="dashboard-grid">
         <div className="panel wide">
-          <PanelHeader icon={<BarChart3 size={17} />} title="Penambahan Follower & Views" action="Sync Manual" onAction={() => showToast('Sync manual berhasil dijadwalkan.')} />
-          <BarTrend data={daily} />
+          <PanelHeader icon={<BarChart3 size={18} />} title="Penambahan Follower & Views" action="Sync Manual" />
+          <BarTrend accounts={data.socialAccounts} />
         </div>
         <div className="panel">
-          <PanelHeader icon={<Gauge size={17} />} title="Account Health" />
-          <HealthGauge percent={activeAccount.health || 82} />
+          <PanelHeader icon={<Gauge size={18} />} title="Connection Health" />
+          <HealthGauge connected={data.connected} />
         </div>
         <div className="panel">
-          <PanelHeader icon={<Users size={17} />} title="Client Performance" />
-          <ClientMiniList searchQuery={searchQuery} clients={clients} socialAccounts={socialAccounts} />
+          <PanelHeader icon={<Users size={18} />} title="Connected Accounts" />
+          <AccountMiniList accounts={data.socialAccounts} />
         </div>
-        <div className="panel full-width">
-          <PanelHeader icon={<FileText size={17} />} title="Top Content" action="Export PDF" onAction={() => showToast('Export PDF akan tersedia di versi production.')} />
-          <PostTable posts={filterPosts(accountPosts, searchQuery)} />
+        <div className="panel wide">
+          <PanelHeader icon={<FileText size={18} />} title="Top Content" action="Export PDF" />
+          <PostTable posts={data.posts} />
         </div>
       </section>
     </div>
   );
 }
 
-/* ──────────────────────────
-   CLIENTS VIEW
-   ────────────────────────── */
-function ClientsView({ selectedClientId, setSelectedClientId, searchQuery, showToast, clients = [], socialAccounts = [], onAddClient }) {
-  const filtered = clients.filter((c) => matchSearch(searchQuery, c.name, c.company, c.contact));
+function ConnectEmptyState() {
+  return (
+    <section className="empty-state">
+      <Instagram size={22} />
+      <div>
+        <strong>Belum ada akun Instagram terhubung.</strong>
+        <span>Klik Connect IG, login ke Meta, pilih Page yang terhubung ke Instagram Professional, lalu dashboard akan terisi data live.</span>
+      </div>
+      <a href="/api/meta/connect">Connect IG sekarang</a>
+    </section>
+  );
+}
 
+function ClientsView({ clients, accounts }) {
   return (
     <div className="dashboard-page">
       <section className="panel">
-        <PanelHeader icon={<Users size={17} />} title="Client List" action="Tambah Client" onAction={onAddClient} />
-        <div className="client-card-grid">
-          {filtered.map((client) => {
-            const accountCount = socialAccounts.filter((a) => a.clientId === client.id).length;
-            return (
-              <button key={client.id} className={`client-card ${client.id === selectedClientId ? 'selected' : ''}`} onClick={() => setSelectedClientId(client.id)}>
-                <span className="avatar" style={{ '--avatar': client.color }}>{client.name.slice(0, 2)}</span>
+        <PanelHeader icon={<Users size={18} />} title="Client List" action="Tambah Client" />
+        {clients.length ? (
+          <div className="client-card-grid">
+            {clients.map((client) => (
+              <article className="client-card selected" key={client.id}>
+                <span className="avatar" style={{ '--avatar': '#6857f5' }}>{client.name.slice(0, 2)}</span>
                 <strong>{client.name}</strong>
                 <small>{client.company}</small>
                 <div>
-                  <span className={`pill ${client.status.toLowerCase()}`}>{client.status}</span>
-                  <span>{accountCount} akun IG tersambung</span>
+                  <span className="pill active">{client.status}</span>
+                  <span>{accounts.length} akun IG tersambung</span>
                 </div>
-              </button>
-            );
-          })}
-          {filtered.length === 0 && <p style={{ color: 'var(--ink-muted)', padding: '20px' }}>Tidak ada client yang cocok dengan pencarian.</p>}
-        </div>
+              </article>
+            ))}
+          </div>
+        ) : <EmptyRows text="Belum ada client live. Hubungkan IG dulu untuk membuat client otomatis." />}
       </section>
     </div>
   );
 }
 
-/* ──────────────────────────
-   SOCIAL MEDIA VIEW
-   ────────────────────────── */
-function SocialMediaView({ searchQuery, showToast, clients = [], socialAccounts = [], onConnectIG }) {
-  const filtered = socialAccounts.filter((a) =>
-    matchSearch(searchQuery, a.username, a.accountName, clients.find((c) => c.id === a.clientId)?.name ?? '')
-  );
-
+function SocialMediaView({ accounts }) {
   return (
     <div className="dashboard-page">
       <section className="panel">
-        <PanelHeader icon={<Instagram size={17} />} title="Social Media List" action="Connect Instagram" onAction={onConnectIG} />
-        <div className="account-list">
-          {filtered.map((account) => {
-            const client = clients.find((c) => c.id === account.clientId);
-            return (
+        <PanelHeader icon={<Instagram size={18} />} title="Social Media List" action="Connect Instagram" />
+        {accounts.length ? (
+          <div className="account-list">
+            {accounts.map((account) => (
               <article className="account-row" key={account.id}>
-                <span className="ig-badge"><Instagram size={18} /></span>
+                <span className="ig-badge"><Instagram size={19} /></span>
                 <div>
                   <strong>{account.username}</strong>
-                  <small>{account.accountName} · {account.type}</small>
+                  <small>{account.accountName} - {account.type}</small>
                 </div>
-                <div>
-                  <span>Client</span>
-                  <strong>{client?.name || 'Unassigned'}</strong>
-                </div>
-                <div>
-                  <span>Followers</span>
-                  <strong>{format(account.followers)}</strong>
-                  <small>+{format(account.growth)} ({account.growthRate}%)</small>
-                </div>
-                <div>
-                  <span>Views</span>
-                  <strong>{format(account.views)}</strong>
-                </div>
-                <div>
-                  <span>Reels</span>
-                  <strong>{account.reels}</strong>
-                </div>
-                <span className={`pill ${account.status.toLowerCase()}`}>{account.status}</span>
+                <div><span>Client</span><strong>Live Meta</strong></div>
+                <div><span>Followers</span><strong>{format(account.followers)}</strong><small>+{format(account.growth)} ({account.growthRate || 0}%)</small></div>
+                <div><span>Views</span><strong>{format(account.views)}</strong></div>
+                <div><span>Reels</span><strong>{format(account.reels)}</strong></div>
+                <span className={`pill ${String(account.status).toLowerCase()}`}>{account.status}</span>
               </article>
-            );
-          })}
-          {filtered.length === 0 && <p style={{ color: 'var(--ink-muted)', padding: '20px' }}>Tidak ada akun yang cocok dengan pencarian.</p>}
-        </div>
+            ))}
+          </div>
+        ) : <EmptyRows text="Belum ada akun IG. Klik Connect Instagram untuk mulai OAuth." />}
       </section>
     </div>
   );
 }
 
-/* ──────────────────────────
-   SETTINGS VIEW
-   ────────────────────────── */
-function SettingsView({ selectedClient, setSelectedClientId, assignment, accounts, onToggleAccount, showToast, clients = [], socialAccounts = [] }) {
+function SettingsView({ client, assignment, accounts }) {
+  const selectedIds = assignment?.accountIds || [];
   return (
     <div className="settings-layout">
       <section className="panel">
-        <PanelHeader icon={<Users size={17} />} title="Pilih Client" />
-        <div className="stack-list">
-          {clients.map((client) => (
-            <button key={client.id} className={`setting-client ${client.id === selectedClient.id ? 'active' : ''}`} onClick={() => setSelectedClientId(client.id)}>
-              <span className="avatar" style={{ '--avatar': client.color }}>{client.name.slice(0, 2)}</span>
-              <span><strong>{client.name}</strong><small>{client.plan}</small></span>
-            </button>
-          ))}
-        </div>
+        <PanelHeader icon={<Users size={18} />} title="Client" />
+        {client ? (
+          <div className="setting-client active">
+            <span className="avatar" style={{ '--avatar': '#6857f5' }}>{client.name.slice(0, 2)}</span>
+            <span><strong>{client.name}</strong><small>{client.plan}</small></span>
+          </div>
+        ) : <EmptyRows text="Belum ada client." />}
       </section>
 
       <section className="panel">
-        <PanelHeader
-          icon={<ShieldCheck size={17} />}
-          title={`Set akses IG untuk ${selectedClient.name}`}
-          action="Simpan Setting"
-          onAction={() => showToast(`Pengaturan akses untuk ${selectedClient.name} berhasil disimpan.`)}
-        />
+        <PanelHeader icon={<ShieldCheck size={18} />} title="Set akses IG untuk client" action="Simpan Setting" />
         <div className="assignment-box">
           <div className="assignment-client">
-            <span className="avatar large" style={{ '--avatar': selectedClient.color }}>{selectedClient.name.slice(0, 2)}</span>
+            <span className="avatar large" style={{ '--avatar': '#6857f5' }}>{client ? client.name.slice(0, 2) : 'RI'}</span>
             <div>
-              <strong>{selectedClient.name}</strong>
-              <small>Client hanya bisa melihat akun yang dicentang di bawah.</small>
+              <strong>{client?.name || 'Belum ada client'}</strong>
+              <small>Client hanya bisa melihat akun yang dicentang.</small>
             </div>
           </div>
           <div className="access-arrow">akses</div>
           <div className="assignment-accounts">
-            {socialAccounts.map((account) => {
-              const checked = assignment.accountIds.includes(account.id);
+            {accounts.length ? accounts.map((account) => {
+              const checked = selectedIds.includes(account.id);
               return (
-                <label
-                  key={account.id}
-                  className={checked ? 'access-card checked' : 'access-card'}
-                  onClick={(e) => { e.preventDefault(); onToggleAccount(selectedClient.id, account.id); }}
-                >
-                  <input type="checkbox" checked={checked} onChange={() => {}} />
-                  <Instagram size={17} />
-                  <span>
-                    <strong>{account.username}</strong>
-                    <small>{clients.find((c) => c.id === account.clientId)?.name || 'Unassigned'}</small>
-                  </span>
+                <label key={account.id} className={checked ? 'access-card checked' : 'access-card'}>
+                  <input type="checkbox" checked={checked} readOnly />
+                  <Instagram size={18} />
+                  <span><strong>{account.username}</strong><small>{account.accountName}</small></span>
                 </label>
               );
-            })}
+            }) : <EmptyRows text="Belum ada akun IG untuk di-set." />}
           </div>
         </div>
       </section>
 
       <section className="panel">
-        <PanelHeader icon={<KeyRound size={17} />} title="Share Link Setting" />
+        <PanelHeader icon={<KeyRound size={18} />} title="Share Link Setting" />
         <div className="share-card light">
-          <code>https://insight.dausmhf.com/share/{assignment.token}</code>
+          <code>{assignment ? `https://insight.dausmhf.com/share/${assignment.token}` : 'Share link dibuat setelah akun terhubung.'}</code>
           <div className="share-settings">
-            <span><CheckCircle2 size={14} /> {accounts.length} akun terlihat</span>
-            <span><FileText size={14} /> PDF {assignment.pdf ? 'aktif' : 'nonaktif'}</span>
-            <span><Lock size={14} /> PIN {assignment.pin ? 'aktif' : 'nonaktif'}</span>
+            <span><CheckCircle2 size={15} /> {selectedIds.length} akun terlihat</span>
+            <span><FileText size={15} /> PDF aktif</span>
+            <span><Lock size={15} /> token aman</span>
           </div>
         </div>
       </section>
@@ -1012,110 +337,55 @@ function SettingsView({ selectedClient, setSelectedClientId, assignment, account
   );
 }
 
-/* ──────────────────────────
-   CLIENT VIEW (SHARE PREVIEW)
-   ────────────────────────── */
-function ClientView({ client, accounts, period }) {
-  const [activeId, setActiveId] = useState(null);
-
-  const activeAccount = useMemo(() => {
-    if (activeId && accounts.some((a) => a.id === activeId)) {
-      return accounts.find((a) => a.id === activeId);
-    }
-    return accounts[0] || null;
-  }, [activeId, accounts]);
-
-  useEffect(() => {
-    if (accounts.length > 0 && (!activeId || !accounts.some((a) => a.id === activeId))) {
-      setActiveId(accounts[0].id);
-    }
-  }, [accounts, activeId]);
-
-  if (!activeAccount) {
-    return (
-      <div className="dashboard-page" style={{ padding: '40px', textAlign: 'center', color: 'var(--ink-muted)' }}>
-        Belum ada akun Instagram yang dihubungkan ke client ini.
-      </div>
-    );
-  }
-
-  const daily = getAccountDailyData(activeAccount.id, period);
-  const clientPosts = posts.filter((p) => p.account === activeAccount.username);
-  const avgER = clientPosts.length > 0 ? (clientPosts.reduce((s, p) => s + p.er, 0) / clientPosts.length).toFixed(1) : '0.0';
-  const periodLabel = period.replace('d', '');
+function ClientView({ client, accounts, posts, period }) {
+  const followers = accounts.reduce((sum, account) => sum + Number(account.followers || 0), 0);
+  const views = accounts.reduce((sum, account) => sum + Number(account.views || 0), 0);
+  const reach = accounts.reduce((sum, account) => sum + Number(account.reach || 0), 0);
 
   return (
     <div className="dashboard-page">
       <section className="client-hero">
         <div>
           <p className="eyebrow">Private report link</p>
-          <h2>{client.name}</h2>
-          <span>{periodLabel} hari performa untuk akun <strong>{activeAccount.username}</strong> ({activeAccount.accountName}).</span>
+          <h2>{client?.name || 'Client Report'}</h2>
+          <span>{period.replace('d', '')} hari performa dari {accounts.length} akun yang diizinkan.</span>
         </div>
         <div className="hero-actions">
-          <button><Download size={16} /> PDF</button>
-          <button className="ghost"><Filter size={16} /> Filter</button>
-        </div>
-      </section>
-
-      <section className="account-selector-wrapper">
-        <strong>Pilih Akun Instagram</strong>
-        <div className="account-selector-tabs">
-          {accounts.map((account) => {
-            const isActive = account.id === activeAccount.id;
-            return (
-              <button
-                key={account.id}
-                className={`account-tab-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveId(account.id)}
-                style={{ '--avatar': client?.color || 'var(--purple)' }}
-              >
-                <span className="avatar-mini">
-                  {client?.name.slice(0, 2) || 'IG'}
-                </span>
-                <strong>{account.username}</strong>
-                <span style={{ fontSize: '11px', opacity: isActive ? 0.9 : 0.6 }}>
-                  ({format(account.followers)} followers)
-                </span>
-              </button>
-            );
-          })}
+          <button><Download size={17} /> PDF</button>
+          <button className="ghost"><Filter size={17} /> Filter</button>
         </div>
       </section>
 
       <div className="metric-grid">
-        <Metric title="Followers" value={format(activeAccount.followers)} detail={`+${format(activeAccount.growth)} follower`} rate={`+${activeAccount.growthRate}%`} icon={<TrendingUp />} featured />
-        <Metric title="Total Views" value={format(activeAccount.views)} detail="Views periode ini" rate="+18.2%" icon={<Activity />} />
-        <Metric title="Total Reach" value={format(activeAccount.reach)} detail="Audience unik" rate="+11.5%" icon={<Eye />} />
-        <Metric title="Avg ER" value={`${avgER}%`} detail="Engagement rate" rate="+0.8%" icon={<MessageCircle />} />
+        <Metric title="Followers" value={format(followers)} detail="Total akun terlihat" rate="live" icon={<TrendingUp />} featured />
+        <Metric title="Total Views" value={format(views)} detail="Views periode ini" rate="live" icon={<Activity />} />
+        <Metric title="Total Reach" value={format(reach)} detail="Audience unik" rate="live" icon={<Eye />} />
+        <Metric title="Akun Terlihat" value={format(accounts.length)} detail="Permission scope" rate="secure" icon={<MessageCircle />} />
       </div>
 
       <section className="dashboard-grid">
         <div className="panel wide">
-          <PanelHeader icon={<BarChart3 size={17} />} title={`Penambahan Follower — ${activeAccount.username}`} />
-          <BarTrend data={daily} />
+          <PanelHeader icon={<BarChart3 size={18} />} title="Penambahan Follower" />
+          <BarTrend accounts={accounts} />
         </div>
         <div className="panel">
-          <PanelHeader icon={<Gauge size={17} />} title="Account Health" />
-          <HealthGauge percent={activeAccount.health || 82} />
+          <PanelHeader icon={<Instagram size={18} />} title="Akun Terlihat" />
+          <AccountMiniList accounts={accounts} />
         </div>
-        <div className="panel full-width">
-          <PanelHeader icon={<FileText size={17} />} title={`Top Content — ${activeAccount.username}`} />
-          <PostTable posts={clientPosts} compact />
+        <div className="panel wide">
+          <PanelHeader icon={<FileText size={18} />} title="Top Content" />
+          <PostTable posts={posts} compact />
         </div>
       </section>
     </div>
   );
 }
 
-/* ──────────────────────────
-   SHARED COMPONENTS
-   ────────────────────────── */
-function PanelHeader({ icon, title, action, onAction }) {
+function PanelHeader({ icon, title, action }) {
   return (
     <div className="panel-header">
       <div>{icon}<strong>{title}</strong></div>
-      {action ? <button onClick={onAction}>{action}</button> : null}
+      {action ? <a href="/api/meta/connect">{action}</a> : null}
     </div>
   );
 }
@@ -1125,7 +395,7 @@ function Metric({ title, value, detail, rate, icon, featured = false }) {
     <article className={featured ? 'metric-card featured' : 'metric-card'}>
       <div className="metric-head">
         <span>{title}</span>
-        <div className="metric-icon">{React.cloneElement(icon, { size: 18 })}</div>
+        <div className="metric-icon">{React.cloneElement(icon, { size: 20 })}</div>
       </div>
       <strong>{value}</strong>
       <small>{detail} <b>{rate}</b></small>
@@ -1133,81 +403,67 @@ function Metric({ title, value, detail, rate, icon, featured = false }) {
   );
 }
 
-function BarTrend({ data }) {
-  const max = Math.max(...data.map((d) => d.views));
+function BarTrend({ accounts }) {
+  const values = accounts.length ? accounts.slice(0, 7) : [];
+  const max = Math.max(...values.map((item) => item.views || 0), 1);
+  if (!values.length) return <EmptyRows text="Grafik akan muncul setelah akun IG terhubung dan insight berhasil dibaca." />;
+
   return (
     <div className="bar-trend">
-      {data.map((item, i) => (
-        <div className="bar-item" key={item.day}>
+      {values.map((item) => (
+        <div className="bar-item" key={item.id}>
           <div className="bar-track">
-            <span className="bar-fill follower" style={{ height: `${30 + (item.followers / Math.max(...data.map((d) => d.followers))) * 50}%`, animationDelay: `${i * 0.08}s` }} />
-            <span className="bar-fill views" style={{ height: `${30 + (item.views / max) * 55}%`, animationDelay: `${i * 0.08 + 0.04}s` }} />
+            <span className="bar-fill follower" style={{ height: `${30 + Math.min((item.followers / Math.max(item.followers, 1)) * 45, 45)}%` }} />
+            <span className="bar-fill views" style={{ height: `${30 + ((item.views || 0) / max) * 60}%` }} />
           </div>
-          <small>{item.day}</small>
+          <small>{item.username}</small>
         </div>
       ))}
       <div className="chart-legend">
-        <span><i className="dot follower" /> Follower baru</span>
+        <span><i className="dot follower" /> Followers</span>
         <span><i className="dot views" /> Views</span>
       </div>
     </div>
   );
 }
 
-function HealthGauge({ percent = 82 }) {
-  const circumference = 2 * Math.PI * 50;
-  const offset = circumference - (percent / 100) * circumference;
-
+function HealthGauge({ connected }) {
   return (
     <div className="gauge-card">
-      <div className="gauge-svg-wrap">
-        <svg viewBox="0 0 120 120">
-          <defs>
-            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6857f5" />
-              <stop offset="100%" stopColor="#1db8a4" />
-            </linearGradient>
-          </defs>
-          <circle className="gauge-bg" cx="60" cy="60" r="50" />
-          <circle className="gauge-fill" cx="60" cy="60" r="50" style={{ strokeDashoffset: offset }} />
-        </svg>
-        <div className="gauge-center">
-          <strong>{percent}%</strong>
-          <span>Healthy</span>
-        </div>
+      <div className="gauge-ring">
+        <strong>{connected ? '100%' : '0%'}</strong>
+        <span>{connected ? 'Connected' : 'Waiting'}</span>
       </div>
       <div className="gauge-legend">
-        <span><i /> Sync aktif</span>
-        <span><i /> Token aman</span>
-        <span><i /> Snapshot harian</span>
+        <span><i /> Meta OAuth</span>
+        <span><i /> Encrypted token</span>
+        <span><i /> Dashboard API</span>
       </div>
     </div>
   );
 }
 
-function ClientMiniList({ searchQuery = '', clients = [], socialAccounts = [] }) {
-  const filtered = clients.filter((c) => matchSearch(searchQuery, c.name, c.company));
-
+function AccountMiniList({ accounts }) {
+  if (!accounts.length) return <EmptyRows text="Belum ada akun terhubung." />;
   return (
     <div className="stack-list">
-      {filtered.map((client) => {
-        const count = socialAccounts.filter((a) => a.clientId === client.id).length;
-        return (
-          <div className="mini-row" key={client.id}>
-            <span className="avatar" style={{ '--avatar': client.color }}>{client.name.slice(0, 2)}</span>
-            <span><strong>{client.name}</strong><small>{count} akun IG</small></span>
-            <span className={`pill ${client.status.toLowerCase()}`}>{client.status}</span>
-          </div>
-        );
-      })}
+      {accounts.map((account) => (
+        <div className="mini-row" key={account.id}>
+          <Instagram size={17} />
+          <span><strong>{account.username}</strong><small>{format(account.followers)} followers</small></span>
+          <span className="pill connected">{account.status}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-function PostTable({ posts: postList, compact = false }) {
-  if (postList.length === 0) {
-    return <p style={{ color: 'var(--ink-muted)', padding: '16px 0', fontSize: '13px' }}>Belum ada data konten.</p>;
-  }
+function EmptyRows({ text }) {
+  return <div className="empty-rows">{text}</div>;
+}
+
+function PostTable({ posts, compact = false }) {
+  if (!posts.length) return <EmptyRows text="Belum ada konten. Setelah OAuth berhasil, media dan insight akan tampil di sini." />;
 
   return (
     <div className="table-wrap">
@@ -1218,32 +474,30 @@ function PostTable({ posts: postList, compact = false }) {
             <th>Akun</th>
             <th>Tipe</th>
             <th>Views</th>
-            <th>Share Views</th>
             <th>Reach</th>
-            {!compact && <th>Pillar</th>}
+            {!compact ? <th>Saves</th> : null}
             <th>ER</th>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          {postList.map((post) => (
+          {posts.map((post, index) => (
             <tr key={post.id}>
               <td>
                 <div className="post-cell">
-                  <span className="thumb" style={{ '--thumb': post.color }}>{post.id}</span>
+                  <span className="thumb" style={{ '--thumb': index % 2 ? '#20b8a6' : '#6857f5' }}>{index + 1}</span>
                   <div>
-                    <strong>{post.title}</strong>
-                    <small>{post.date}</small>
+                    <strong>{post.permalink ? <a href={post.permalink} target="_blank" rel="noreferrer">{post.title}</a> : post.title}</strong>
+                    <small>{post.date ? new Date(post.date).toLocaleString('id-ID') : '-'}</small>
                   </div>
                 </div>
               </td>
               <td>{post.account}</td>
               <td>{post.type}</td>
               <td>{format(post.views)}</td>
-              <td>{post.viewsRate}%</td>
               <td>{format(post.reach)}</td>
-              {!compact && <td>{post.pillar}</td>}
-              <td>{post.er}%</td>
+              {!compact ? <td>{format(post.saves)}</td> : null}
+              <td>{post.er || 0}%</td>
               <td><span className={`status ${post.status}`}>{post.status}</span></td>
             </tr>
           ))}
@@ -1253,26 +507,4 @@ function PostTable({ posts: postList, compact = false }) {
   );
 }
 
-/* ──────────────────────────
-   UTILITY
-   ────────────────────────── */
-function matchSearch(query, ...fields) {
-  if (!query || query.trim() === '') return true;
-  const q = query.toLowerCase();
-  return fields.some((f) => f && f.toLowerCase().includes(q));
-}
-
-function filterPosts(allPosts, query) {
-  if (!query || query.trim() === '') return allPosts;
-  const q = query.toLowerCase();
-  return allPosts.filter((p) =>
-    p.title.toLowerCase().includes(q) ||
-    p.account.toLowerCase().includes(q) ||
-    p.pillar.toLowerCase().includes(q)
-  );
-}
-
-/* ──────────────────────────
-   MOUNT
-   ────────────────────────── */
 createRoot(document.getElementById('root')).render(<App />);

@@ -26,17 +26,24 @@ npm install
 npm run build
 ```
 
-Serve output build dari:
+Buat env production di VPS:
+
+```bash
+cp .env.example .env.production
+nano .env.production
+```
+
+Isi minimal:
 
 ```txt
-/var/www/ruank-insight-app/dist
+PUBLIC_BASE_URL=https://insight.dausmhf.com
+META_APP_ID=...
+META_APP_SECRET=...
+META_REDIRECT_URI=https://insight.dausmhf.com/api/meta/callback
+TOKEN_ENCRYPTION_KEY=isi-random-panjang
 ```
 
-Lalu pasang Nginx config dari file `deploy-nginx.conf`. Jika memakai path git di atas, ubah `root` menjadi:
-
-```nginx
-root /var/www/ruank-insight-app/dist;
-```
+Jalankan app via PM2, lalu Nginx reverse proxy ke `127.0.0.1:4177`.
 
 Untuk update berikutnya:
 
@@ -45,6 +52,7 @@ cd /var/www/ruank-insight-app
 git pull
 npm install
 npm run build
+pm2 restart ruank-insight
 sudo systemctl reload nginx
 ```
 
@@ -123,15 +131,14 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d insight.dausmhf.com
 ```
 
-## Catatan MVP Sistem Sungguhan
+## Catatan Sistem Live
 
-Prototype ini masih frontend static dengan mock data. Untuk testing akun Reels sungguhan, backend berikut perlu dibuat sebelum Meta API bisa jalan:
+Versi ini sudah punya backend Node untuk:
 
-- Meta OAuth callback
-- PostgreSQL schema
-- encrypted Instagram token storage
-- daily sync job
-- endpoint dashboard dari database
-- secure share link validation
+- Meta OAuth connect
+- callback `/api/meta/callback`
+- encrypted token storage di file lokal server
+- dashboard API `/api/dashboard`
+- media fetch dan insight fetch awal dari Meta Graph API
 
-Frontend sudah disiapkan secara visual untuk alur itu: Dashboard utama, Client List, Social Media List, Settings Access, dan Client Share View.
+Untuk produksi jangka panjang, storage file lokal sebaiknya dipindah ke PostgreSQL dan daily sync cron.
