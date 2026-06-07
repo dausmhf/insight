@@ -21,8 +21,8 @@ const IG_APP_ID = process.env.IG_APP_ID || APP_ID;
 const IG_APP_SECRET = process.env.IG_APP_SECRET || APP_SECRET;
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`;
 const REDIRECT_URI = process.env.META_REDIRECT_URI || `${PUBLIC_BASE_URL}/api/meta/callback`;
-const AUTH_MODE = process.env.META_AUTH_MODE || 'instagram';
-const META_SCOPES = process.env.META_SCOPES || 'instagram_business_basic,instagram_business_manage_insights';
+const AUTH_MODE = process.env.META_AUTH_MODE || 'facebook';
+const META_SCOPES = process.env.META_SCOPES || 'pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights';
 const TOKEN_KEY_SOURCE = process.env.TOKEN_ENCRYPTION_KEY || APP_SECRET || 'local-development-key-change-me';
 
 const oauthStates = new Map();

@@ -40,8 +40,8 @@ PUBLIC_BASE_URL=https://insight.dausmhf.com
 META_APP_ID=...
 META_APP_SECRET=...
 META_REDIRECT_URI=https://insight.dausmhf.com/api/meta/callback
-META_AUTH_MODE=instagram
-META_SCOPES=instagram_business_basic,instagram_business_manage_insights
+META_AUTH_MODE=facebook
+META_SCOPES=pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights
 TOKEN_ENCRYPTION_KEY=isi-random-panjang
 ```
 
@@ -135,12 +135,20 @@ sudo certbot --nginx -d insight.dausmhf.com
 
 ## Catatan Sistem Live
 
-Versi ini sudah punya backend Node untuk:
+Versi ini sudah punya backend Node untuk multi-client/multi-account:
 
-- Instagram OAuth connect
+- Facebook Login / Meta OAuth via Pages
 - callback `/api/meta/callback`
 - encrypted token storage di file lokal server
 - dashboard API `/api/dashboard`
 - media fetch dan insight fetch awal dari Meta Graph API
+
+Mode multi-client membutuhkan akun Instagram Professional yang terhubung ke Facebook Page.
+Permission Meta yang perlu aktif/valid:
+
+- `pages_show_list`
+- `pages_read_engagement`
+- `instagram_basic`
+- `instagram_manage_insights`
 
 Untuk produksi jangka panjang, storage file lokal sebaiknya dipindah ke PostgreSQL dan daily sync cron.
