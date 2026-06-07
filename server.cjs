@@ -17,6 +17,8 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const IG_GRAPH_BASE = 'https://graph.instagram.com';
 const APP_ID = process.env.META_APP_ID || '';
 const APP_SECRET = process.env.META_APP_SECRET || '';
+const IG_APP_ID = process.env.IG_APP_ID || APP_ID;
+const IG_APP_SECRET = process.env.IG_APP_SECRET || APP_SECRET;
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`;
 const REDIRECT_URI = process.env.META_REDIRECT_URI || `${PUBLIC_BASE_URL}/api/meta/callback`;
 const AUTH_MODE = process.env.META_AUTH_MODE || 'instagram';
@@ -152,8 +154,8 @@ async function exchangeCodeForToken(code) {
 
 async function exchangeInstagramCodeForToken(code) {
   const shortToken = await instagramPost('/oauth/access_token', {
-    client_id: APP_ID,
-    client_secret: APP_SECRET,
+    client_id: IG_APP_ID,
+    client_secret: IG_APP_SECRET,
     grant_type: 'authorization_code',
     redirect_uri: REDIRECT_URI,
     code,
@@ -162,7 +164,7 @@ async function exchangeInstagramCodeForToken(code) {
   try {
     const longToken = await instagramGraphGet('/access_token', {
       grant_type: 'ig_exchange_token',
-      client_secret: APP_SECRET,
+      client_secret: IG_APP_SECRET,
       access_token: shortToken.access_token,
     });
     return longToken.access_token || shortToken.access_token;
@@ -394,12 +396,15 @@ async function handle(req, res) {
       if (!APP_ID || !APP_SECRET) {
         return json(res, 500, { error: 'META_APP_ID and META_APP_SECRET are not configured' });
       }
+      if (AUTH_MODE === 'instagram' && (!IG_APP_ID || !IG_APP_SECRET)) {
+        return json(res, 500, { error: 'IG_APP_ID and IG_APP_SECRET are not configured' });
+      }
       const state = crypto.randomBytes(24).toString('hex');
       oauthStates.set(state, Date.now());
       const oauthUrl = AUTH_MODE === 'facebook'
         ? new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`)
         : new URL('https://www.instagram.com/oauth/authorize');
-      oauthUrl.searchParams.set('client_id', APP_ID);
+      oauthUrl.searchParams.set('client_id', AUTH_MODE === 'facebook' ? APP_ID : IG_APP_ID);
       oauthUrl.searchParams.set('redirect_uri', REDIRECT_URI);
       oauthUrl.searchParams.set('state', state);
       oauthUrl.searchParams.set('scope', META_SCOPES);
