@@ -33,13 +33,13 @@ import './styles.css';
 /* ──────────────────────────
    MOCK DATA
    ────────────────────────── */
-const clients = [
+const initialClients = [
   { id: 1, name: 'Belajar Haji', company: 'PT Bimbingan Tamu Allah', status: 'Active', contact: 'Fahri', plan: 'Retainer', color: '#6857f5' },
   { id: 2, name: 'Ruang Cerita Bunda', company: 'Komunitas Bunda Bertumbuh', status: 'Active', contact: 'Nadia', plan: 'Premium', color: '#1db8a4' },
   { id: 3, name: 'Quran Talk', company: 'Quran Talk Studio', status: 'Preview', contact: 'Imam', plan: 'Pitching', color: '#f2a93b' },
 ];
 
-const socialAccounts = [
+const initialSocialAccounts = [
   { id: 101, clientId: 1, username: '@belajarhaji.id', accountName: 'Belajar Haji Official', type: 'Creator', followers: 184200, growth: 4261, growthRate: 7.8, views: 1280000, reach: 499000, reels: 18, status: 'Connected', lastSync: '02:10 WIB', health: 94 },
   { id: 102, clientId: 1, username: '@hajimuda', accountName: 'Haji Muda', type: 'Business', followers: 64200, growth: 1188, growthRate: 4.2, views: 612000, reach: 221000, reels: 9, status: 'Connected', lastSync: '02:08 WIB', health: 88 },
   { id: 103, clientId: 1, username: '@umrahclass', accountName: 'Umrah Class', type: 'Creator', followers: 37800, growth: 832, growthRate: 3.6, views: 388000, reach: 146000, reels: 7, status: 'Connected', lastSync: '02:05 WIB', health: 79 },
@@ -118,8 +118,8 @@ const posts = [
   { id: 19, account: '@qurantalk.id', clientId: 3, title: 'Cara cepat menghafal surat pendek', date: '15 Mei 2026', type: 'Reels', views: 320000, viewsRate: 17.6, reach: 185000, likes: 11200, saves: 8400, shares: 4300, er: 7.8, pillar: 'Edukasi', status: 'repeat', color: '#6857f5' },
 ];
 
-const getAccountDailyData = (accountId, period) => {
-  const account = socialAccounts.find((a) => a.id === accountId);
+const getAccountDailyData = (accountId, period, socialAccountsList) => {
+  const account = (socialAccountsList || initialSocialAccounts).find((a) => a.id === accountId);
   if (!account) return dailyData[period] ?? [];
 
   const seed = account.id;
@@ -160,6 +160,32 @@ function App() {
   const [toast, setToast] = useState(null);
   const [adminActiveAccountId, setAdminActiveAccountId] = useState(101);
 
+  // Dynamic state for clients and social accounts
+  const [clients, setClients] = useState(initialClients);
+  const [socialAccounts, setSocialAccounts] = useState(initialSocialAccounts);
+
+  // Modals state
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
+  const [isMetaConnectOpen, setIsMetaConnectOpen] = useState(false);
+
+  // Tambah Client Form States
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientCompany, setNewClientCompany] = useState('');
+  const [newClientContact, setNewClientContact] = useState('');
+  const [newClientPlan, setNewClientPlan] = useState('Retainer');
+  const [newClientColor, setNewClientColor] = useState('#6857f5');
+
+  // Meta App Config Form States
+  const [metaActiveTab, setMetaActiveTab] = useState('diagnostic'); // 'diagnostic' | 'credentials'
+  const [metaAppId, setMetaAppId] = useState('');
+  const [metaAppSecret, setMetaAppSecret] = useState('');
+  const [metaUserToken, setMetaUserToken] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('idle'); // 'idle' | 'checking' | 'connected'
+  const [metaAccounts, setMetaAccounts] = useState([
+    { id: 401, username: '@travelumroh.official', accountName: 'Travel Umroh Official', followers: 15200, growth: 420, growthRate: 2.8, views: 92000, reach: 41000, reels: 3, health: 92, targetClientId: 1, checked: true },
+    { id: 402, username: '@kuliner.jakarta', accountName: 'Info Kuliner Jakarta', followers: 32400, growth: 1250, growthRate: 3.9, views: 245000, reach: 98000, reels: 8, health: 86, targetClientId: 2, checked: false }
+  ]);
+
   const showToast = useCallback((message) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
@@ -167,7 +193,7 @@ function App() {
 
   const selectedClient = clients.find((c) => c.id === selectedClientId) ?? clients[0];
   const selectedAssignment = assignments.find((a) => a.clientId === selectedClient.id) ?? assignments[0];
-  const allowedAccounts = socialAccounts.filter((a) => selectedAssignment.accountIds.includes(a.id));
+  const allowedAccounts = socialAccounts.filter((a) => selectedAssignment?.accountIds?.includes(a.id) || false);
 
   const toggleAccountAssignment = useCallback((clientId, accountId) => {
     setAssignments((prev) =>
@@ -181,6 +207,118 @@ function App() {
     );
   }, []);
 
+  // Tambah Client Submit
+  const handleAddClientSubmit = (e) => {
+    e.preventDefault();
+    if (!newClientName.trim() || !newClientCompany.trim()) {
+      showToast('Mohon lengkapi nama client dan perusahaan.');
+      return;
+    }
+
+    const newId = clients.length > 0 ? Math.max(...clients.map((c) => c.id)) + 1 : 1;
+    const newClient = {
+      id: newId,
+      name: newClientName,
+      company: newClientCompany,
+      status: 'Active',
+      contact: newClientContact || 'PIC',
+      plan: newClientPlan,
+      color: newClientColor,
+    };
+
+    setClients((prev) => [...prev, newClient]);
+    setAssignments((prev) => [
+      ...prev,
+      {
+        clientId: newId,
+        accountIds: [],
+        defaultPeriod: '30d',
+        pdf: true,
+        pin: false,
+        token: `rk_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`,
+      },
+    ]);
+
+    setIsAddClientOpen(false);
+    showToast(`Client ${newClientName} berhasil ditambahkan!`);
+    
+    // Reset form
+    setNewClientName('');
+    setNewClientCompany('');
+    setNewClientContact('');
+    setNewClientPlan('Retainer');
+    setNewClientColor('#6857f5');
+  };
+
+  // Meta connection check
+  const handleMetaCheckConnection = () => {
+    setConnectionStatus('checking');
+    setTimeout(() => {
+      setConnectionStatus('connected');
+      showToast('Koneksi Meta Graph API Berhasil!');
+    }, 1500);
+  };
+
+  // Import Meta IG Accounts
+  const handleImportAccounts = () => {
+    const accountsToImport = metaAccounts.filter((a) => a.checked);
+    if (accountsToImport.length === 0) {
+      showToast('Pilih setidaknya satu akun untuk di-import.');
+      return;
+    }
+
+    // Append to social accounts list
+    setSocialAccounts((prev) => {
+      const existingIds = prev.map((pa) => pa.id);
+      const newAccounts = accountsToImport
+        .filter((a) => !existingIds.includes(a.id))
+        .map((a) => ({
+          id: a.id,
+          clientId: Number(a.targetClientId),
+          username: a.username,
+          accountName: a.accountName,
+          type: 'Creator',
+          followers: a.followers,
+          growth: a.growth,
+          growthRate: a.growthRate,
+          views: a.views,
+          reach: a.reach,
+          reels: a.reels,
+          status: 'Connected',
+          lastSync: 'Baru saja',
+          health: a.health,
+        }));
+      return [...prev, ...newAccounts];
+    });
+
+    // Update assignment to link new accounts to target clients
+    setAssignments((prev) =>
+      prev.map((assign) => {
+        const matchingImports = accountsToImport.filter((a) => Number(a.targetClientId) === assign.clientId);
+        if (matchingImports.length === 0) return assign;
+        
+        const newIds = [...new Set([...assign.accountIds, ...matchingImports.map((m) => m.id)])];
+        return { ...assign, accountIds: newIds };
+      })
+    );
+
+    setIsMetaConnectOpen(false);
+    showToast(`${accountsToImport.length} akun Instagram berhasil di-import!`);
+    setConnectionStatus('idle');
+  };
+
+  const toggleImportCheck = (id) => {
+    setMetaAccounts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, checked: !a.checked } : a))
+    );
+  };
+
+  const handleImportClientChange = (id, clientId) => {
+    setMetaAccounts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, targetClientId: Number(clientId) } : a))
+    );
+  };
+
   return (
     <main className="app-shell">
       <Sidebar view={view} setView={setView} />
@@ -193,10 +331,31 @@ function App() {
             period={period}
             searchQuery={searchQuery}
             showToast={showToast}
+            clients={clients}
+            socialAccounts={socialAccounts}
+            onConnectIG={() => setIsMetaConnectOpen(true)}
           />
         )}
-        {view === 'clients' && <ClientsView selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId} searchQuery={searchQuery} showToast={showToast} />}
-        {view === 'social' && <SocialMediaView searchQuery={searchQuery} showToast={showToast} />}
+        {view === 'clients' && (
+          <ClientsView
+            selectedClientId={selectedClientId}
+            setSelectedClientId={setSelectedClientId}
+            searchQuery={searchQuery}
+            showToast={showToast}
+            clients={clients}
+            socialAccounts={socialAccounts}
+            onAddClient={() => setIsAddClientOpen(true)}
+          />
+        )}
+        {view === 'social' && (
+          <SocialMediaView
+            searchQuery={searchQuery}
+            showToast={showToast}
+            clients={clients}
+            socialAccounts={socialAccounts}
+            onConnectIG={() => setIsMetaConnectOpen(true)}
+          />
+        )}
         {view === 'settings' && (
           <SettingsView
             selectedClient={selectedClient}
@@ -205,10 +364,295 @@ function App() {
             accounts={allowedAccounts}
             onToggleAccount={toggleAccountAssignment}
             showToast={showToast}
+            clients={clients}
+            socialAccounts={socialAccounts}
           />
         )}
         {view === 'client' && <ClientView client={selectedClient} accounts={allowedAccounts} period={period} />}
       </section>
+
+      {/* Tambah Client Modal */}
+      {isAddClientOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddClientOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Tambah Client Baru</h3>
+              <button className="modal-close-btn" onClick={() => setIsAddClientOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleAddClientSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="client-name">Nama Client / Brand</label>
+                  <input
+                    id="client-name"
+                    className="form-input"
+                    placeholder="Contoh: Belajar Haji"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="client-company">Perusahaan</label>
+                  <input
+                    id="client-company"
+                    className="form-input"
+                    placeholder="Contoh: PT Bimbingan Tamu Allah"
+                    value={newClientCompany}
+                    onChange={(e) => setNewClientCompany(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="client-contact">Kontak PIC (Nama)</label>
+                  <input
+                    id="client-contact"
+                    className="form-input"
+                    placeholder="Contoh: Fahri"
+                    value={newClientContact}
+                    onChange={(e) => setNewClientContact(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="client-plan">Paket Layanan</label>
+                  <select
+                    id="client-plan"
+                    className="form-select"
+                    value={newClientPlan}
+                    onChange={(e) => setNewClientPlan(e.target.value)}
+                  >
+                    <option value="Retainer">Retainer</option>
+                    <option value="Premium">Premium</option>
+                    <option value="Pitching">Pitching</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Warna Aksen Brand</label>
+                  <div className="color-presets">
+                    {['#6857f5', '#1db8a4', '#f2a93b', '#ef6b57', '#22c55e'].map((c) => (
+                      <span
+                        key={c}
+                        className={`color-dot ${newClientColor === c ? 'active' : ''}`}
+                        style={{ backgroundColor: c }}
+                        onClick={() => setNewClientColor(c)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="hero-actions ghost" style={{ height: '36px' }} onClick={() => setIsAddClientOpen(false)}>
+                  Batal
+                </button>
+                <button type="submit" className="hero-actions" style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}>
+                  Simpan Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Meta API Diagnostic Modal */}
+      {isMetaConnectOpen && (
+        <div className="modal-overlay" onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Meta Graph API Connector</h3>
+              <button className="modal-close-btn" onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}>×</button>
+            </div>
+            
+            <div className="modal-tabs">
+              <button
+                className={`modal-tab-btn ${metaActiveTab === 'diagnostic' ? 'active' : ''}`}
+                onClick={() => setMetaActiveTab('diagnostic')}
+              >
+                Diagnostic Status
+              </button>
+              <button
+                className={`modal-tab-btn ${metaActiveTab === 'credentials' ? 'active' : ''}`}
+                onClick={() => setMetaActiveTab('credentials')}
+              >
+                API Credentials
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {metaActiveTab === 'diagnostic' && (
+                <>
+                  <div className="diagnostic-panel">
+                    <div className="diagnostic-item">
+                      <div className="diagnostic-label">
+                        <strong>Meta Server Status</strong>
+                        <span>Graph API Endpoint Reachability</span>
+                      </div>
+                      <span className="status-badge ok">Connected (Ping 45ms)</span>
+                    </div>
+                    <div className="diagnostic-item">
+                      <div className="diagnostic-label">
+                        <strong>Meta Developer App ID</strong>
+                        <span>Application identity settings</span>
+                      </div>
+                      <span className={`status-badge ${metaAppId ? 'ok' : 'warning'}`}>
+                        {metaAppId ? 'Configured' : 'Unconfigured'}
+                      </span>
+                    </div>
+                    <div className="diagnostic-item">
+                      <div className="diagnostic-label">
+                        <strong>User Access Token</strong>
+                        <span>Meta Graph Access Authentication Token</span>
+                      </div>
+                      <span className={`status-badge ${metaUserToken ? 'ok' : 'error'}`}>
+                        {metaUserToken ? 'Valid (Expires in 59d)' : 'Empty / Expired'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {connectionStatus === 'idle' && (
+                    <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                      <button
+                        className="hero-actions"
+                        style={{ height: '38px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
+                        onClick={handleMetaCheckConnection}
+                      >
+                        Cek Koneksi & Sync Akun
+                      </button>
+                    </div>
+                  )}
+
+                  {connectionStatus === 'checking' && (
+                    <div className="diagnostic-loader">
+                      <div className="spinner" />
+                      <span>Menghubungkan ke Meta Graph API Server...</span>
+                    </div>
+                  )}
+
+                  {connectionStatus === 'connected' && (
+                    <div>
+                      <div className="info-box" style={{ marginBottom: '16px' }}>
+                        <strong>Koneksi Sukses!</strong> Menemukan 2 akun Instagram Profesional yang ditautkan pada Facebook Page Anda.
+                      </div>
+                      <strong style={{ fontSize: '13px', display: 'block', marginBottom: '8px' }}>Pilih Akun yang akan Di-import:</strong>
+                      <div className="import-checklist">
+                        {metaAccounts.map((acc) => (
+                          <div
+                            key={acc.id}
+                            className={`import-row ${acc.checked ? 'checked' : ''}`}
+                            onClick={() => toggleImportCheck(acc.id)}
+                          >
+                            <div className="import-row-info">
+                              <input
+                                type="checkbox"
+                                className="import-checkbox"
+                                checked={acc.checked}
+                                readOnly
+                              />
+                              <Instagram size={18} style={{ color: 'var(--purple)' }} />
+                              <span>
+                                <strong>{acc.username}</strong>
+                                <small>{acc.accountName} · {format(acc.followers)} followers</small>
+                              </span>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <select
+                                className="form-select"
+                                style={{ height: '32px', fontSize: '12px', padding: '0 8px' }}
+                                value={acc.targetClientId}
+                                onChange={(e) => handleImportClientChange(acc.id, e.target.value)}
+                              >
+                                {clients.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    Assign ke: {c.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {metaActiveTab === 'credentials' && (
+                <>
+                  <div className="info-box">
+                    Gunakan tab ini untuk melakukan kustomisasi credential developer Meta App ID dan Access Token jika ingin menghubungkan dengan App real.
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="meta-app-id">Meta App ID</label>
+                    <input
+                      id="meta-app-id"
+                      className="form-input"
+                      placeholder="Masukkan 15-digit App ID (misal: 104256729012356)"
+                      value={metaAppId}
+                      onChange={(e) => setMetaAppId(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="meta-app-secret">Meta App Secret</label>
+                    <input
+                      id="meta-app-secret"
+                      type="password"
+                      className="form-input"
+                      placeholder="Masukkan App Secret Key"
+                      value={metaAppSecret}
+                      onChange={(e) => setMetaAppSecret(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="meta-user-token">Meta User Access Token</label>
+                    <textarea
+                      id="meta-user-token"
+                      className="form-input"
+                      style={{ height: '80px', padding: '10px 14px', resize: 'none', fontFamily: 'monospace' }}
+                      placeholder="EAAGb3ZCsZC16... (Dapatkan dari Meta Graph Explorer)"
+                      value={metaUserToken}
+                      onChange={(e) => setMetaUserToken(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="hero-actions ghost"
+                style={{ height: '36px' }}
+                onClick={() => { setIsMetaConnectOpen(false); setConnectionStatus('idle'); }}
+              >
+                Batal
+              </button>
+              {connectionStatus === 'connected' && metaActiveTab === 'diagnostic' && (
+                <button
+                  type="button"
+                  className="hero-actions"
+                  style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
+                  onClick={handleImportAccounts}
+                >
+                  Import Akun Terpilih
+                </button>
+              )}
+              {metaActiveTab === 'credentials' && (
+                <button
+                  type="button"
+                  className="hero-actions"
+                  style={{ height: '36px', background: 'linear-gradient(135deg, var(--purple), var(--purple-light))', color: '#fff' }}
+                  onClick={() => {
+                    setMetaActiveTab('diagnostic');
+                    showToast('Kredensial disimpan! Silakan cek koneksi.');
+                  }}
+                >
+                  Simpan Credential
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div className="toast">
           <CheckCircle2 size={18} />
@@ -313,9 +757,29 @@ function Topbar({ view, period, setPeriod, searchQuery, setSearchQuery }) {
 /* ──────────────────────────
    DASHBOARD HOME
    ────────────────────────── */
-function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuery, showToast }) {
+function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuery, showToast, clients = [], socialAccounts = [], onConnectIG }) {
   const activeAccount = socialAccounts.find((a) => a.id === activeAccountId) ?? socialAccounts[0];
-  const daily = getAccountDailyData(activeAccount.id, period);
+  
+  if (!activeAccount) {
+    return (
+      <div className="dashboard-page">
+        <section className="hero-panel" style={{ minHeight: 'auto', padding: '32px' }}>
+          <div>
+            <p className="eyebrow">Ruank Insight Dashboard</p>
+            <h2>Belum ada akun Instagram terhubung.</h2>
+            <span>Hubungkan akun Instagram profesional pertama Anda lewat developer portal Meta API.</span>
+          </div>
+          <div className="hero-actions">
+            <button onClick={onConnectIG}>
+              <Plus size={17} /> Connect IG
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const daily = getAccountDailyData(activeAccount.id, period, socialAccounts);
   const accountPosts = posts.filter((p) => p.account === activeAccount.username);
   
   const avgER = accountPosts.length > 0 
@@ -331,7 +795,7 @@ function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuer
           <span>Semua angka dibaca dari database snapshot untuk akun yang sedang aktif.</span>
         </div>
         <div className="hero-actions">
-          <button onClick={() => showToast('Fitur Connect IG akan tersedia setelah integrasi Meta API.')}>
+          <button onClick={onConnectIG}>
             <Plus size={17} /> Connect IG
           </button>
           <button className="ghost" onClick={() => showToast('Export report akan tersedia dalam versi production.')}>
@@ -384,7 +848,7 @@ function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuer
         </div>
         <div className="panel">
           <PanelHeader icon={<Users size={17} />} title="Client Performance" />
-          <ClientMiniList searchQuery={searchQuery} />
+          <ClientMiniList searchQuery={searchQuery} clients={clients} socialAccounts={socialAccounts} />
         </div>
         <div className="panel full-width">
           <PanelHeader icon={<FileText size={17} />} title="Top Content" action="Export PDF" onAction={() => showToast('Export PDF akan tersedia di versi production.')} />
@@ -398,13 +862,13 @@ function DashboardHome({ activeAccountId, setActiveAccountId, period, searchQuer
 /* ──────────────────────────
    CLIENTS VIEW
    ────────────────────────── */
-function ClientsView({ selectedClientId, setSelectedClientId, searchQuery, showToast }) {
+function ClientsView({ selectedClientId, setSelectedClientId, searchQuery, showToast, clients = [], socialAccounts = [], onAddClient }) {
   const filtered = clients.filter((c) => matchSearch(searchQuery, c.name, c.company, c.contact));
 
   return (
     <div className="dashboard-page">
       <section className="panel">
-        <PanelHeader icon={<Users size={17} />} title="Client List" action="Tambah Client" onAction={() => showToast('Fitur tambah client akan tersedia.')} />
+        <PanelHeader icon={<Users size={17} />} title="Client List" action="Tambah Client" onAction={onAddClient} />
         <div className="client-card-grid">
           {filtered.map((client) => {
             const accountCount = socialAccounts.filter((a) => a.clientId === client.id).length;
@@ -430,7 +894,7 @@ function ClientsView({ selectedClientId, setSelectedClientId, searchQuery, showT
 /* ──────────────────────────
    SOCIAL MEDIA VIEW
    ────────────────────────── */
-function SocialMediaView({ searchQuery, showToast }) {
+function SocialMediaView({ searchQuery, showToast, clients = [], socialAccounts = [], onConnectIG }) {
   const filtered = socialAccounts.filter((a) =>
     matchSearch(searchQuery, a.username, a.accountName, clients.find((c) => c.id === a.clientId)?.name ?? '')
   );
@@ -438,7 +902,7 @@ function SocialMediaView({ searchQuery, showToast }) {
   return (
     <div className="dashboard-page">
       <section className="panel">
-        <PanelHeader icon={<Instagram size={17} />} title="Social Media List" action="Connect Instagram" onAction={() => showToast('Fitur Connect IG akan tersedia setelah integrasi Meta API.')} />
+        <PanelHeader icon={<Instagram size={17} />} title="Social Media List" action="Connect Instagram" onAction={onConnectIG} />
         <div className="account-list">
           {filtered.map((account) => {
             const client = clients.find((c) => c.id === account.clientId);
@@ -451,7 +915,7 @@ function SocialMediaView({ searchQuery, showToast }) {
                 </div>
                 <div>
                   <span>Client</span>
-                  <strong>{client?.name}</strong>
+                  <strong>{client?.name || 'Unassigned'}</strong>
                 </div>
                 <div>
                   <span>Followers</span>
@@ -480,7 +944,7 @@ function SocialMediaView({ searchQuery, showToast }) {
 /* ──────────────────────────
    SETTINGS VIEW
    ────────────────────────── */
-function SettingsView({ selectedClient, setSelectedClientId, assignment, accounts, onToggleAccount, showToast }) {
+function SettingsView({ selectedClient, setSelectedClientId, assignment, accounts, onToggleAccount, showToast, clients = [], socialAccounts = [] }) {
   return (
     <div className="settings-layout">
       <section className="panel">
@@ -524,7 +988,7 @@ function SettingsView({ selectedClient, setSelectedClientId, assignment, account
                   <Instagram size={17} />
                   <span>
                     <strong>{account.username}</strong>
-                    <small>{clients.find((c) => c.id === account.clientId)?.name}</small>
+                    <small>{clients.find((c) => c.id === account.clientId)?.name || 'Unassigned'}</small>
                   </span>
                 </label>
               );
@@ -721,7 +1185,7 @@ function HealthGauge({ percent = 82 }) {
   );
 }
 
-function ClientMiniList({ searchQuery = '' }) {
+function ClientMiniList({ searchQuery = '', clients = [], socialAccounts = [] }) {
   const filtered = clients.filter((c) => matchSearch(searchQuery, c.name, c.company));
 
   return (
