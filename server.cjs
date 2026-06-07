@@ -14,11 +14,13 @@ loadEnvFile(path.join(ROOT, '.env.production'));
 
 const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v24.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const IG_GRAPH_BASE = 'https://graph.instagram.com';
 const APP_ID = process.env.META_APP_ID || '';
 const APP_SECRET = process.env.META_APP_SECRET || '';
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`;
 const REDIRECT_URI = process.env.META_REDIRECT_URI || `${PUBLIC_BASE_URL}/api/meta/callback`;
-const META_SCOPES = process.env.META_SCOPES || 'pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights';
+const AUTH_MODE = process.env.META_AUTH_MODE || 'instagram';
+const META_SCOPES = process.env.META_SCOPES || 'instagram_business_basic,instagram_business_manage_insights';
 const TOKEN_KEY_SOURCE = process.env.TOKEN_ENCRYPTION_KEY || APP_SECRET || 'local-development-key-change-me';
 
 const oauthStates = new Map();
@@ -99,6 +101,34 @@ async function graphGet(pathname, params = {}) {
   return data;
 }
 
+async function instagramGraphGet(pathname, params = {}) {
+  const url = new URL(`${IG_GRAPH_BASE}${pathname}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error?.message || `Instagram API error ${response.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
+async function instagramPost(pathname, body) {
+  const response = await fetch(`${IG_GRAPH_BASE}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error_message || data?.error?.message || `Instagram API error ${response.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
 async function exchangeCodeForToken(code) {
   const shortToken = await graphGet('/oauth/access_token', {
     client_id: APP_ID,
@@ -120,9 +150,30 @@ async function exchangeCodeForToken(code) {
   }
 }
 
+async function exchangeInstagramCodeForToken(code) {
+  const shortToken = await instagramPost('/oauth/access_token', {
+    client_id: APP_ID,
+    client_secret: APP_SECRET,
+    grant_type: 'authorization_code',
+    redirect_uri: REDIRECT_URI,
+    code,
+  });
+
+  try {
+    const longToken = await instagramGraphGet('/access_token', {
+      grant_type: 'ig_exchange_token',
+      client_secret: APP_SECRET,
+      access_token: shortToken.access_token,
+    });
+    return longToken.access_token || shortToken.access_token;
+  } catch {
+    return shortToken.access_token;
+  }
+}
+
 async function fetchMediaInsights(mediaId, accessToken) {
   try {
-    const response = await graphGet(`/${mediaId}/insights`, {
+    const response = await instagramGraphGet(`/${mediaId}/insights`, {
       metric: 'views,reach,saved,shares,total_interactions',
       access_token: accessToken,
     });
@@ -130,6 +181,62 @@ async function fetchMediaInsights(mediaId, accessToken) {
   } catch {
     return {};
   }
+}
+
+async function fetchInstagramLoginData(accessToken) {
+  const me = await instagramGraphGet('/me', {
+    fields: 'user_id,username,name,account_type,media_count,followers_count,profile_picture_url',
+    access_token: accessToken,
+  });
+
+  const account = {
+    id: String(me.user_id || me.id),
+    pageId: null,
+    pageName: 'Instagram Login',
+    username: me.username ? `@${String(me.username).replace(/^@/, '')}` : `IG ${me.user_id || me.id}`,
+    accountName: me.name || me.username || `Instagram ${me.user_id || me.id}`,
+    profilePictureUrl: me.profile_picture_url || null,
+    followers: Number(me.followers_count || 0),
+    mediaCount: Number(me.media_count || 0),
+    status: 'Connected',
+    lastSync: new Date().toISOString(),
+    pageAccessTokenEncrypted: encrypt(accessToken),
+  };
+
+  const mediaPosts = [];
+  try {
+    const media = await instagramGraphGet('/me/media', {
+      fields: 'id,caption,media_type,media_product_type,permalink,thumbnail_url,timestamp,like_count,comments_count',
+      limit: 25,
+      access_token: accessToken,
+    });
+
+    for (const item of media.data || []) {
+      const insights = await fetchMediaInsights(item.id, accessToken);
+      mediaPosts.push({
+        id: item.id,
+        accountId: account.id,
+        account: account.username,
+        title: item.caption ? item.caption.slice(0, 90) : `${item.media_product_type || item.media_type} post`,
+        caption: item.caption || '',
+        date: item.timestamp || null,
+        type: item.media_product_type || item.media_type || 'Media',
+        permalink: item.permalink || null,
+        thumbnailUrl: item.thumbnail_url || null,
+        views: Number(insights.views || 0),
+        reach: Number(insights.reach || 0),
+        saves: Number(insights.saved || 0),
+        shares: Number(insights.shares || 0),
+        interactions: Number(insights.total_interactions || 0),
+        likes: Number(item.like_count || 0),
+        comments: Number(item.comments_count || 0),
+      });
+    }
+  } catch (error) {
+    account.mediaError = error.message;
+  }
+
+  return { pages: [], igAccounts: [account], mediaPosts };
 }
 
 async function fetchInstagramData(userAccessToken) {
@@ -289,11 +396,18 @@ async function handle(req, res) {
       }
       const state = crypto.randomBytes(24).toString('hex');
       oauthStates.set(state, Date.now());
-      const oauthUrl = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
+      const oauthUrl = AUTH_MODE === 'facebook'
+        ? new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`)
+        : new URL('https://www.instagram.com/oauth/authorize');
       oauthUrl.searchParams.set('client_id', APP_ID);
       oauthUrl.searchParams.set('redirect_uri', REDIRECT_URI);
       oauthUrl.searchParams.set('state', state);
       oauthUrl.searchParams.set('scope', META_SCOPES);
+      oauthUrl.searchParams.set('response_type', 'code');
+      if (AUTH_MODE === 'instagram') {
+        oauthUrl.searchParams.set('enable_fb_login', '0');
+        oauthUrl.searchParams.set('force_authentication', '1');
+      }
       res.writeHead(302, { Location: oauthUrl.toString() });
       return res.end();
     }
@@ -311,8 +425,12 @@ async function handle(req, res) {
       }
       if (!code) return html(res, 400, '<h1>Meta OAuth code kosong</h1>');
 
-      const userAccessToken = await exchangeCodeForToken(code);
-      const live = await fetchInstagramData(userAccessToken);
+      const userAccessToken = AUTH_MODE === 'facebook'
+        ? await exchangeCodeForToken(code)
+        : await exchangeInstagramCodeForToken(code);
+      const live = AUTH_MODE === 'facebook'
+        ? await fetchInstagramData(userAccessToken)
+        : await fetchInstagramLoginData(userAccessToken);
       const store = loadStore();
       store.connections = [{
         id: crypto.randomUUID(),

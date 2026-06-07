@@ -40,6 +40,8 @@ PUBLIC_BASE_URL=https://insight.dausmhf.com
 META_APP_ID=...
 META_APP_SECRET=...
 META_REDIRECT_URI=https://insight.dausmhf.com/api/meta/callback
+META_AUTH_MODE=instagram
+META_SCOPES=instagram_business_basic,instagram_business_manage_insights
 TOKEN_ENCRYPTION_KEY=isi-random-panjang
 ```
 
@@ -135,7 +137,7 @@ sudo certbot --nginx -d insight.dausmhf.com
 
 Versi ini sudah punya backend Node untuk:
 
-- Meta OAuth connect
+- Instagram OAuth connect
 - callback `/api/meta/callback`
 - encrypted token storage di file lokal server
 - dashboard API `/api/dashboard`
