@@ -48,6 +48,52 @@ npm run build
 sudo systemctl reload nginx
 ```
 
+## PM2 Mode
+
+Kalau ingin app dijalankan via PM2, gunakan config `ecosystem.config.cjs`.
+
+Command di server:
+
+```bash
+cd /var/www/ruank-insight-app
+npm install
+npm run build
+sudo npm install -g pm2
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+```
+
+Untuk update:
+
+```bash
+cd /var/www/ruank-insight-app
+git pull
+npm install
+npm run build
+pm2 restart ruank-insight
+```
+
+Jika memakai PM2, Nginx bisa diarahkan sebagai reverse proxy ke `127.0.0.1:4177`.
+
+Contoh server block:
+
+```nginx
+server {
+    listen 80;
+    server_name insight.dausmhf.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:4177;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
 ## Deploy Manual Tanpa Git
 
 Upload isi folder `dist/` ke `/var/www/ruank-insight`, lalu pakai `deploy-nginx.conf` default.
